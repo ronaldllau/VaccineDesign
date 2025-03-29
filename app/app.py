@@ -62,6 +62,7 @@ def predict():
     if request.method == 'POST':
         data = request.get_json()
         peptide_seq = data.get('sequence', '')
+        hla_class = data.get('hla_class', 'I')  # Default to Class I if not specified
         
         if not peptide_seq:
             return jsonify({'error': 'No peptide sequence provided'}), 400
@@ -75,14 +76,14 @@ def predict():
         if process_mode == 'single':
             try:
                 # Run prediction for a single peptide
-                predictions = run_prediction(peptide_seq)
+                predictions = run_prediction(peptide_seq, hla_class)
                 return jsonify(predictions)
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
         elif process_mode == 'sliding':
             try:
                 # Generate and predict all possible peptides
-                predictions = run_sliding_window_prediction(peptide_seq)
+                predictions = run_sliding_window_prediction(peptide_seq, hla_class)
                 return jsonify(predictions)
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
@@ -94,12 +95,20 @@ def is_valid_peptide(peptide):
     valid_aa = set('ACDEFGHIKLMNPQRSTVWY')
     return set(peptide.upper()).issubset(valid_aa)
 
-def generate_peptides(sequence, min_length=8, max_length=21):
-    """Generate all possible peptides within the length range."""
+def generate_peptides(sequence, hla_class='I'):
+    """Generate all possible peptides within the length range appropriate for the HLA class."""
     peptides = []
     
     # Validate sequence and convert to uppercase
     sequence = sequence.upper()
+    
+    # Set length ranges based on HLA class
+    if hla_class == 'I':
+        min_length = 8
+        max_length = 14
+    else:  # Class II
+        min_length = 13
+        max_length = 21
     
     # Generate peptides for each possible length
     for length in range(min_length, min(max_length + 1, len(sequence) + 1)):
@@ -114,56 +123,28 @@ def generate_peptides(sequence, min_length=8, max_length=21):
     
     return peptides
 
-def run_sliding_window_prediction(sequence):
+def run_sliding_window_prediction(sequence, hla_class='I'):
     """Run predictions on all possible peptides within the sequence."""
-    # Generate all valid peptides
-    peptide_list = generate_peptides(sequence)
+    # Generate all valid peptides for the specified HLA class
+    peptide_list = generate_peptides(sequence, hla_class)
+    
+    if not peptide_list:
+        raise ValueError(f"No valid peptides could be generated for HLA class {hla_class} from the given sequence")
     
     # Process each peptide
-    class_I_peptides = []
-    class_II_peptides = []
+    predictions = []
     
     for peptide_info in peptide_list:
         peptide = peptide_info['peptide']
-        length = peptide_info['length']
         position = peptide_info['position']
+        length = peptide_info['length']
         
-        # Categorize by length for batch processing
-        if 8 <= length <= 14:
-            class_I_peptides.append({
-                'peptide': peptide,
-                'position': position,
-                'length': length
-            })
-        elif 13 <= length <= 21:
-            class_II_peptides.append({
-                'peptide': peptide,
-                'position': position,
-                'length': length
-            })
-    
-    # Process by batches
-    predictions = []
-    
-    # Process Class I peptides
-    if class_I_peptides:
-        for peptide_info in class_I_peptides:
-            peptide = peptide_info['peptide']
-            result = run_prediction(peptide)['results'][0]
-            result['position'] = peptide_info['position']
-            result['length'] = peptide_info['length']
-            result['class'] = 'I'
-            predictions.append(result)
-    
-    # Process Class II peptides
-    if class_II_peptides:
-        for peptide_info in class_II_peptides:
-            peptide = peptide_info['peptide']
-            result = run_prediction(peptide)['results'][0]
-            result['position'] = peptide_info['position']
-            result['length'] = peptide_info['length']
-            result['class'] = 'II'
-            predictions.append(result)
+        # Run prediction and get result
+        result = run_prediction(peptide, hla_class)['results'][0]
+        result['position'] = position
+        result['length'] = length
+        result['class'] = hla_class
+        predictions.append(result)
     
     # Sort by position and then by length
     predictions.sort(key=lambda x: (x['position'], x['length']))
@@ -178,29 +159,31 @@ def run_sliding_window_prediction(sequence):
         'total_peptides': total_peptides,
         'epitope_count': epitope_count,
         'epitope_density': epitope_density,
+        'hla_class': hla_class,
         'results': predictions
     }
 
-def run_prediction(peptide_seq):
+def run_prediction(peptide_seq, hla_class='I'):
     """Run epitope prediction using TransHLA."""
     global tokenizer, transHLA_I_model, transHLA_II_model
     try:
         peptide_seq = peptide_seq.upper()
-        peptide_length = len(peptide_seq)
         
-        # Determine which model to use based on peptide length
-        if 8 <= peptide_length <= 14:
-            # Use TransHLA_I for shorter peptides
+        # Select model based on HLA class
+        if hla_class == 'I':
             model = transHLA_I_model
             max_length = 16
-            hla_class = 'I'
-        elif 13 <= peptide_length <= 21:
-            # Use TransHLA_II for longer peptides
+            
+            # Validate peptide length for Class I
+            if len(peptide_seq) < 8 or len(peptide_seq) > 14:
+                print(f"Warning: Peptide length {len(peptide_seq)} may not be optimal for HLA Class I prediction")
+        else:  # Class II
             model = transHLA_II_model
             max_length = 23
-            hla_class = 'II'
-        else:
-            raise ValueError(f"Peptide length {peptide_length} is outside the supported range (8-21 amino acids)")
+            
+            # Validate peptide length for Class II
+            if len(peptide_seq) < 13 or len(peptide_seq) > 21:
+                print(f"Warning: Peptide length {len(peptide_seq)} may not be optimal for HLA Class II prediction")
         
         # Tokenize the peptide
         peptide_encoding = tokenizer([peptide_seq])['input_ids']

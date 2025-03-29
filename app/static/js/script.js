@@ -3,6 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const peptideInput = document.getElementById('peptide-sequence');
     const modeSingle = document.getElementById('mode-single');
     const modeSliding = document.getElementById('mode-sliding');
+    const hlaClassI = document.getElementById('hla-class-i');
+    const hlaClassII = document.getElementById('hla-class-ii');
+    const hlaClassSelection = document.getElementById('hla-class-selection');
+    const lengthWarning = document.getElementById('length-warning');
+    const lengthWarningMessage = document.getElementById('length-warning-message');
     const predictBtn = document.getElementById('predict-btn');
     const loadingSpinner = document.getElementById('loading-spinner');
     const singleResultsSection = document.getElementById('single-results-section');
@@ -36,7 +41,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (value !== filteredValue) {
             e.target.value = filteredValue;
         }
+        
+        // Check peptide length for warnings
+        checkPeptideLength();
     });
+    
+    // Monitor HLA class and analysis mode changes
+    hlaClassI.addEventListener('change', checkPeptideLength);
+    hlaClassII.addEventListener('change', checkPeptideLength);
+    modeSingle.addEventListener('change', () => {
+        hlaClassSelection.classList.remove('d-none');
+        checkPeptideLength();
+    });
+    modeSliding.addEventListener('change', () => {
+        hlaClassSelection.classList.remove('d-none');
+        checkPeptideLength();
+    });
+
+    // Function to check peptide length and show warnings
+    function checkPeptideLength() {
+        const peptideSeq = peptideInput.value.trim().toUpperCase();
+        if (!peptideSeq) {
+            lengthWarning.classList.add('d-none');
+            return;
+        }
+        
+        const peptideLength = peptideSeq.length;
+        const isSingleMode = modeSingle.checked;
+        const isClassI = hlaClassI.checked;
+        
+        if (isSingleMode) {
+            if (isClassI && (peptideLength < 8 || peptideLength > 14)) {
+                lengthWarningMessage.textContent = 'This peptide length may not be optimal for HLA Class I. Consider switching to HLA Class II or adjusting your sequence.';
+                lengthWarning.classList.remove('d-none');
+            } else if (!isClassI && (peptideLength < 13 || peptideLength > 21)) {
+                lengthWarningMessage.textContent = 'This peptide length may not be optimal for HLA Class II. Consider switching to HLA Class I or adjusting your sequence.';
+                lengthWarning.classList.remove('d-none');
+            } else {
+                lengthWarning.classList.add('d-none');
+            }
+        } else {
+            lengthWarning.classList.add('d-none');
+        }
+    }
 
     // Show/hide epitopes only event listener
     showEpitopeOnly.addEventListener('change', () => {
@@ -59,20 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Get analysis mode
+        // Get analysis mode and HLA class
         const mode = modeSliding.checked ? 'sliding' : 'single';
+        const hlaClass = hlaClassII.checked ? 'II' : 'I';
         
         // Validate peptide length for single peptide mode
         if (mode === 'single') {
             const peptideLength = peptideSeq.length;
             
-            if (peptideLength < 8 || peptideLength > 21) {
-                showError('For single peptide analysis, sequence should be between 8-21 amino acids. For longer sequences, use Sliding Window Analysis.');
+            if (peptideLength < 8) {
+                showError('Peptide sequence should be at least 8 amino acids in length.');
                 return;
             }
             
-            if (peptideLength > 14 && peptideLength < 13) {
-                showError('Peptides of length 15-12 are not supported by the model.');
+            if (peptideLength > 21) {
+                showError('For single peptide analysis, sequence should be maximum 21 amino acids. For longer sequences, use Sliding Window Analysis.');
                 return;
             }
         }
@@ -94,7 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ 
                     sequence: peptideSeq,
-                    mode: mode
+                    mode: mode,
+                    hla_class: hlaClass
                 }),
             });
             
@@ -149,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isEpitope = results[0].is_epitope;
         predictionSummary.innerHTML = isEpitope
             ? `<strong>Result:</strong> The peptide ${data.peptide} is predicted to be a potential HLA class ${results[0].hla_class} epitope.`
-            : `<strong>Result:</strong> The peptide ${data.peptide} is predicted to be a non-epitope.`;
+            : `<strong>Result:</strong> The peptide ${data.peptide} is predicted to be a non-epitope when presented by HLA class ${results[0].hla_class}.`;
             
         // Create visualization
         createSingleVisualization(results[0]);
@@ -174,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         slidingSummary.innerHTML = `
             <strong>Analysis Summary:</strong> 
             Found ${data.epitope_count} potential epitopes out of ${data.total_peptides} possible peptides 
-            (${(data.epitope_density * 100).toFixed(1)}% epitope density).
+            (${(data.epitope_density * 100).toFixed(1)}% epitope density) using HLA class ${data.hla_class} prediction.
         `;
         
         // Render the table with current filter/sort settings
@@ -288,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     title: {
                         display: true,
-                        text: 'Epitope Prediction Probability',
+                        text: `HLA Class ${result.hla_class} Epitope Prediction`,
                         font: {
                             size: 16
                         }
@@ -338,6 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const percent = ((count / data.total_peptides) * 100).toFixed(1);
                                 return `${label}: ${count} (${percent}%)`;
                             }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: `HLA Class ${data.hla_class} Epitope Density`,
+                        font: {
+                            size: 14
                         }
                     }
                 }
@@ -396,6 +452,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return `Probability: ${context.raw.toFixed(3)}`;
                             }
                         }
+                    },
+                    title: {
+                        display: true,
+                        text: `HLA Class ${data.hla_class} Epitope Probability Distribution`,
+                        font: {
+                            size: 14
+                        }
                     }
                 },
                 scales: {
@@ -427,4 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.textContent = '';
         errorMessage.classList.add('d-none');
     }
+    
+    // Initialize by checking peptide length on load
+    checkPeptideLength();
 }); 

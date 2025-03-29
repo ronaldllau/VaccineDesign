@@ -25,10 +25,10 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <p><strong>Instructions:</strong> Enter a peptide sequence to predict its potential as an HLA epitope.</p>
-                            <p><strong>Length requirements:</strong></p>
+                            <p><strong>Recommended length ranges:</strong></p>
                             <ul>
-                                <li>HLA Class I epitopes: 8-14 amino acids</li>
-                                <li>HLA Class II epitopes: 13-21 amino acids</li>
+                                <li>HLA Class I epitopes: typically 8-14 amino acids</li>
+                                <li>HLA Class II epitopes: typically 13-21 amino acids</li>
                                 <li>For longer sequences: Enter any sequence length and use the "Sliding Window Analysis" option to identify all potential epitopes</li>
                             </ul>
                             <p class="mb-0"><small>Valid amino acids: A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y</small></p>
@@ -42,22 +42,47 @@
                                 <div class="form-text">Enter a peptide sequence using standard amino acid letters.</div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label class="form-label">Analysis Mode</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="analysis-mode" id="mode-single" value="single" checked>
-                                    <label class="form-check-label" for="mode-single">
-                                        Single Peptide Analysis
-                                    </label>
-                                    <small class="d-block text-muted">Use for individual peptides (8-21 amino acids)</small>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Analysis Mode</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="analysis-mode" id="mode-single" value="single" checked>
+                                        <label class="form-check-label" for="mode-single">
+                                            Single Peptide Analysis
+                                        </label>
+                                        <small class="d-block text-muted">Use for individual peptides</small>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="radio" name="analysis-mode" id="mode-sliding" value="sliding">
+                                        <label class="form-check-label" for="mode-sliding">
+                                            Sliding Window Analysis
+                                        </label>
+                                        <small class="d-block text-muted">Identify all potential epitopes in a longer sequence</small>
+                                    </div>
                                 </div>
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="radio" name="analysis-mode" id="mode-sliding" value="sliding">
-                                    <label class="form-check-label" for="mode-sliding">
-                                        Sliding Window Analysis
-                                    </label>
-                                    <small class="d-block text-muted">Identify all potential epitopes in a longer sequence</small>
+                                
+                                <div class="col-md-6" id="hla-class-selection">
+                                    <label class="form-label">HLA Class</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hla-class" id="hla-class-i" value="I" checked>
+                                        <label class="form-check-label" for="hla-class-i">
+                                            HLA Class I
+                                        </label>
+                                        <small class="d-block text-muted">For peptides typically 8-14aa, presented to CD8+ T cells</small>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="radio" name="hla-class" id="hla-class-ii" value="II">
+                                        <label class="form-check-label" for="hla-class-ii">
+                                            HLA Class II
+                                        </label>
+                                        <small class="d-block text-muted">For peptides typically 13-21aa, presented to CD4+ T cells</small>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <div class="alert alert-warning d-none" id="length-warning">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Length Warning:</strong> 
+                                <span id="length-warning-message"></span>
                             </div>
                             
                             <button type="submit" class="btn btn-primary" id="predict-btn">
@@ -178,8 +203,8 @@
                         <p>TransHLA is the first tool capable of directly identifying peptides as epitopes without the need for inputting HLA alleles.</p>
                         <p><strong>Features:</strong></p>
                         <ul>
-                            <li>TransHLA_I: For shorter peptides (8-14 amino acids) presented by HLA class I molecules</li>
-                            <li>TransHLA_II: For longer peptides (13-21 amino acids) presented by HLA class II molecules</li>
+                            <li>TransHLA_I: For peptides presented by HLA class I molecules (typically 8-14 amino acids)</li>
+                            <li>TransHLA_II: For peptides presented by HLA class II molecules (typically 13-21 amino acids)</li>
                             <li>Utilizes transformer encoder module and deep CNN for prediction</li>
                             <li>Trained using pretrained sequence embeddings from ESM2 and contact map structural features</li>
                             <li>Sliding window analysis for identifying all potential epitopes in protein sequences</li>
