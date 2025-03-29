@@ -69,18 +69,117 @@ def predict():
         # Basic validation
         if not is_valid_peptide(peptide_seq):
             return jsonify({'error': 'Invalid peptide sequence. Use only valid amino acid letters.'}), 400
-            
-        try:
-            # Run prediction with TransHLA
-            predictions = run_prediction(peptide_seq)
-            return jsonify(predictions)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        
+        process_mode = data.get('mode', 'single')
+        
+        if process_mode == 'single':
+            try:
+                # Run prediction for a single peptide
+                predictions = run_prediction(peptide_seq)
+                return jsonify(predictions)
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+        elif process_mode == 'sliding':
+            try:
+                # Generate and predict all possible peptides
+                predictions = run_sliding_window_prediction(peptide_seq)
+                return jsonify(predictions)
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+        else:
+            return jsonify({'error': 'Invalid processing mode'}), 400
 
 def is_valid_peptide(peptide):
     """Check if peptide contains only valid amino acid letters."""
     valid_aa = set('ACDEFGHIKLMNPQRSTVWY')
     return set(peptide.upper()).issubset(valid_aa)
+
+def generate_peptides(sequence, min_length=8, max_length=21):
+    """Generate all possible peptides within the length range."""
+    peptides = []
+    
+    # Validate sequence and convert to uppercase
+    sequence = sequence.upper()
+    
+    # Generate peptides for each possible length
+    for length in range(min_length, min(max_length + 1, len(sequence) + 1)):
+        # Slide a window of the current length over the sequence
+        for i in range(len(sequence) - length + 1):
+            peptide = sequence[i:i+length]
+            peptides.append({
+                'peptide': peptide,
+                'position': i + 1,  # 1-indexed position
+                'length': length
+            })
+    
+    return peptides
+
+def run_sliding_window_prediction(sequence):
+    """Run predictions on all possible peptides within the sequence."""
+    # Generate all valid peptides
+    peptide_list = generate_peptides(sequence)
+    
+    # Process each peptide
+    class_I_peptides = []
+    class_II_peptides = []
+    
+    for peptide_info in peptide_list:
+        peptide = peptide_info['peptide']
+        length = peptide_info['length']
+        position = peptide_info['position']
+        
+        # Categorize by length for batch processing
+        if 8 <= length <= 14:
+            class_I_peptides.append({
+                'peptide': peptide,
+                'position': position,
+                'length': length
+            })
+        elif 13 <= length <= 21:
+            class_II_peptides.append({
+                'peptide': peptide,
+                'position': position,
+                'length': length
+            })
+    
+    # Process by batches
+    predictions = []
+    
+    # Process Class I peptides
+    if class_I_peptides:
+        for peptide_info in class_I_peptides:
+            peptide = peptide_info['peptide']
+            result = run_prediction(peptide)['results'][0]
+            result['position'] = peptide_info['position']
+            result['length'] = peptide_info['length']
+            result['class'] = 'I'
+            predictions.append(result)
+    
+    # Process Class II peptides
+    if class_II_peptides:
+        for peptide_info in class_II_peptides:
+            peptide = peptide_info['peptide']
+            result = run_prediction(peptide)['results'][0]
+            result['position'] = peptide_info['position']
+            result['length'] = peptide_info['length']
+            result['class'] = 'II'
+            predictions.append(result)
+    
+    # Sort by position and then by length
+    predictions.sort(key=lambda x: (x['position'], x['length']))
+    
+    # Calculate overall epitope density
+    total_peptides = len(predictions)
+    epitope_count = sum(1 for p in predictions if p['is_epitope'])
+    epitope_density = epitope_count / total_peptides if total_peptides > 0 else 0
+    
+    return {
+        'original_sequence': sequence,
+        'total_peptides': total_peptides,
+        'epitope_count': epitope_count,
+        'epitope_density': epitope_density,
+        'results': predictions
+    }
 
 def run_prediction(peptide_seq):
     """Run epitope prediction using TransHLA."""
@@ -94,10 +193,12 @@ def run_prediction(peptide_seq):
             # Use TransHLA_I for shorter peptides
             model = transHLA_I_model
             max_length = 16
+            hla_class = 'I'
         elif 13 <= peptide_length <= 21:
             # Use TransHLA_II for longer peptides
             model = transHLA_II_model
             max_length = 23
+            hla_class = 'II'
         else:
             raise ValueError(f"Peptide length {peptide_length} is outside the supported range (8-21 amino acids)")
         
@@ -120,7 +221,8 @@ def run_prediction(peptide_seq):
         prediction_result = {
             'peptide': peptide_seq,
             'probability': probability,
-            'is_epitope': (label == 1)
+            'is_epitope': (label == 1),
+            'hla_class': hla_class
         }
         
         # Format for the frontend

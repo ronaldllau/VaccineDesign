@@ -21,7 +21,7 @@ COPY app/ app/
 COPY run.py .
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8080
 
 # Command to run the application
 CMD ["python", "run.py"] 

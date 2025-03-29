@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Then open a web browser and navigate to `http://localhost:5000`
+Then open a web browser and navigate to `http://localhost:8080`
 
 ## Docker Deployment
 
@@ -63,10 +63,10 @@ docker build -t transhla-predictor .
 
 2. Run the container:
 ```
-docker run -p 5000:5000 transhla-predictor
+docker run -p 8080:8080 transhla-predictor
 ```
 
-Then open a web browser and navigate to `http://localhost:5000`
+Then open a web browser and navigate to `http://localhost:8080`
 
 ## AWS ECS Deployment
 

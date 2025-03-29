@@ -31,7 +31,7 @@ body {
     border-color: #0a58ca;
 }
 
-input.form-control:focus {
+input.form-control:focus, textarea.form-control:focus {
     border-color: #0d6efd;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
@@ -63,6 +63,30 @@ footer {
     border-top: 1px solid #e9ecef;
 }
 
+/* Sliding window analysis specific styles */
+#sliding-results-section .card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.form-check-inline {
+    margin-right: 1rem;
+}
+
+.form-select-sm {
+    max-width: 150px;
+}
+
+/* Highlight rows in sliding window table */
+#sliding-results-table tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Card headers with controls */
+.card-header.d-flex {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
 /* Visualization styles */
 .card-header {
     font-size: 1rem;
@@ -74,13 +98,29 @@ footer {
     to { opacity: 1; }
 }
 
-#results-section {
+#single-results-section, #sliding-results-section {
     animation: fadeIn 0.5s ease-in;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .col-md-4 {
+    .col-md-4, .col-md-6 {
         margin-top: 1.5rem;
+    }
+
+    .card-header.d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .card-header.d-flex div {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+    
+    .form-select-sm {
+        max-width: 100%;
+        width: 100%;
+        margin-top: 0.5rem;
     }
 } 

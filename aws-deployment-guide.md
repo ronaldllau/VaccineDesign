@@ -66,7 +66,7 @@ docker push YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/transhla-predict
      - Container name: "transhla-predictor"
      - Image: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/transhla-predictor:latest
      - Memory Limits: Set hard limit to at least 2048 MB
-     - Port mappings: 5000:5000
+     - Port mappings: 8080:8080
    - Click "Add" to add the container
    - Click "Create" to create the task definition
 
@@ -81,7 +81,7 @@ docker push YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/transhla-predict
    - Deployment type: Rolling update
    - Configure networking:
      - Select your VPC and subnets
-     - Security groups: Create a new one with inbound TCP port 5000 open
+     - Security groups: Create a new one with inbound TCP port 8080 open
    - Load balancing (optional):
      - Add an Application Load Balancer for better availability
      - Configure health checks
@@ -95,7 +95,7 @@ docker push YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/transhla-predict
    - Once your service is running, go to the "Tasks" tab
    - Click on the running task
    - Find the "Public IP" in the details
-   - Access your application at http://PUBLIC_IP:5000
+   - Access your application at http://PUBLIC_IP:8080
 
 2. **If you used a load balancer**:
    - Find the DNS name of your load balancer

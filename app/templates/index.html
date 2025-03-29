@@ -29,6 +29,7 @@
                             <ul>
                                 <li>HLA Class I epitopes: 8-14 amino acids</li>
                                 <li>HLA Class II epitopes: 13-21 amino acids</li>
+                                <li>For longer sequences: Enter any sequence length and use the "Sliding Window Analysis" option to identify all potential epitopes</li>
                             </ul>
                             <p class="mb-0"><small>Valid amino acids: A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y</small></p>
                         </div>
@@ -36,17 +37,37 @@
                         <form id="prediction-form" class="mb-4">
                             <div class="mb-3">
                                 <label for="peptide-sequence" class="form-label">Peptide Sequence</label>
-                                <input type="text" class="form-control" id="peptide-sequence" 
-                                    placeholder="e.g., GILGFVFTL" required>
-                                <div class="form-text">Enter a single peptide sequence using standard amino acid letters.</div>
+                                <textarea class="form-control" id="peptide-sequence" 
+                                    placeholder="e.g., GILGFVFTL or longer sequence" required rows="3"></textarea>
+                                <div class="form-text">Enter a peptide sequence using standard amino acid letters.</div>
                             </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Analysis Mode</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="analysis-mode" id="mode-single" value="single" checked>
+                                    <label class="form-check-label" for="mode-single">
+                                        Single Peptide Analysis
+                                    </label>
+                                    <small class="d-block text-muted">Use for individual peptides (8-21 amino acids)</small>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="radio" name="analysis-mode" id="mode-sliding" value="sliding">
+                                    <label class="form-check-label" for="mode-sliding">
+                                        Sliding Window Analysis
+                                    </label>
+                                    <small class="d-block text-muted">Identify all potential epitopes in a longer sequence</small>
+                                </div>
+                            </div>
+                            
                             <button type="submit" class="btn btn-primary" id="predict-btn">
                                 Predict
                                 <span class="spinner-border spinner-border-sm d-none" id="loading-spinner" role="status"></span>
                             </button>
                         </form>
 
-                        <div id="results-section" class="mt-4 d-none">
+                        <!-- Single Peptide Results Section -->
+                        <div id="single-results-section" class="mt-4 d-none">
                             <h5>Prediction Results for: <span id="result-peptide"></span></h5>
                             <div class="alert alert-success" id="prediction-summary"></div>
                             
@@ -57,6 +78,7 @@
                                             <thead>
                                                 <tr>
                                                     <th>Peptide</th>
+                                                    <th>HLA Class</th>
                                                     <th>Probability Score</th>
                                                     <th>Result</th>
                                                 </tr>
@@ -73,6 +95,67 @@
                                         <div class="card-body">
                                             <canvas id="results-chart"></canvas>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sliding Window Results Section -->
+                        <div id="sliding-results-section" class="mt-4 d-none">
+                            <h5>Sliding Window Analysis for Sequence: <span id="sliding-sequence"></span></h5>
+                            <div class="alert alert-info" id="sliding-summary"></div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">Epitope Density</div>
+                                        <div class="card-body">
+                                            <canvas id="density-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">Epitope Distribution</div>
+                                        <div class="card-body">
+                                            <canvas id="distribution-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">All Potential Epitopes</h5>
+                                    <div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="show-epitopes-only" value="true">
+                                            <label class="form-check-label" for="show-epitopes-only">Show Epitopes Only</label>
+                                        </div>
+                                        <select class="form-select form-select-sm d-inline-block w-auto" id="sort-select">
+                                            <option value="position">Sort by Position</option>
+                                            <option value="probability">Sort by Probability</option>
+                                            <option value="length">Sort by Length</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Position</th>
+                                                    <th>Peptide</th>
+                                                    <th>Length</th>
+                                                    <th>HLA Class</th>
+                                                    <th>Probability</th>
+                                                    <th>Result</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="sliding-results-table">
+                                                <!-- Sliding window results will be inserted here -->
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -99,6 +182,7 @@
                             <li>TransHLA_II: For longer peptides (13-21 amino acids) presented by HLA class II molecules</li>
                             <li>Utilizes transformer encoder module and deep CNN for prediction</li>
                             <li>Trained using pretrained sequence embeddings from ESM2 and contact map structural features</li>
+                            <li>Sliding window analysis for identifying all potential epitopes in protein sequences</li>
                         </ul>
                     </div>
                 </div>
