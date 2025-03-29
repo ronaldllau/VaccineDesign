@@ -123,4 +123,48 @@ footer {
         width: 100%;
         margin-top: 0.5rem;
     }
+}
+
+/* Sortable table headers */
+th.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 20px;
+    user-select: none;
+}
+
+th.sortable:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+th.sortable i.fa {
+    font-size: 0.8rem;
+    color: #adb5bd;
+    margin-left: 5px;
+}
+
+th.sortable.sort-asc i.fa-sort {
+    display: none;
+}
+
+th.sortable.sort-asc:after {
+    content: "\f0de";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: 5px;
+    color: #0d6efd;
+}
+
+th.sortable.sort-desc i.fa-sort {
+    display: none;
+}
+
+th.sortable.sort-desc:after {
+    content: "\f0dd";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: 5px;
+    color: #0d6efd;
 } 

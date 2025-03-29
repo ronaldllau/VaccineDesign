@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let distributionChart = null;
     let slidingResults = null;
 
+    // Set show epitopes only to checked by default
+    showEpitopeOnly.checked = true;
+
     // Input validation
     peptideInput.addEventListener('input', (e) => {
         const value = e.target.value.toUpperCase();
@@ -71,17 +74,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const isClassI = hlaClassI.checked;
         
         if (isSingleMode) {
-            if (isClassI && (peptideLength < 8 || peptideLength > 14)) {
-                lengthWarningMessage.textContent = 'This peptide length may not be optimal for HLA Class I. Consider switching to HLA Class II or adjusting your sequence.';
+            // Universal minimum length check
+            if (peptideLength < 8) {
+                lengthWarningMessage.textContent = 'This peptide is too short. Minimum required length is 8 amino acids for any HLA class.';
                 lengthWarning.classList.remove('d-none');
-            } else if (!isClassI && (peptideLength < 13 || peptideLength > 21)) {
-                lengthWarningMessage.textContent = 'This peptide length may not be optimal for HLA Class II. Consider switching to HLA Class I or adjusting your sequence.';
+                return;
+            }
+            
+            // Universal maximum length check for single peptide mode
+            if (peptideLength > 21) {
+                lengthWarningMessage.textContent = 'This peptide is too long for single analysis. Maximum length is 21 amino acids. Use Sliding Window Analysis for longer sequences.';
+                lengthWarning.classList.remove('d-none');
+                return;
+            }
+            
+            // Class-specific optimal length checks
+            if (isClassI && peptideLength > 14) {
+                lengthWarningMessage.textContent = 'This peptide length exceeds optimal range for HLA Class I (8-14 aa). Consider switching to HLA Class II.';
+                lengthWarning.classList.remove('d-none');
+            } else if (!isClassI && peptideLength < 13) {
+                lengthWarningMessage.textContent = 'This peptide length is below optimal range for HLA Class II (13-21 aa). Consider switching to HLA Class I.';
                 lengthWarning.classList.remove('d-none');
             } else {
                 lengthWarning.classList.add('d-none');
             }
         } else {
-            lengthWarning.classList.add('d-none');
+            // For sliding window, only show warning if sequence is too short for both classes
+            if (peptideLength < 8) {
+                lengthWarningMessage.textContent = 'This sequence is too short to generate any valid peptides. Minimum required length is 8 amino acids.';
+                lengthWarning.classList.remove('d-none');
+            } else {
+                lengthWarning.classList.add('d-none');
+            }
         }
     }
 
@@ -92,8 +116,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sort select event listener
     sortSelect.addEventListener('change', () => {
-        renderSlidingResults();
+        const columnName = sortSelect.value;
+        sortTableByColumn(columnName, 'asc');
     });
+    
+    // Add event listeners for table header sorting
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('th.sortable') || e.target;
+        
+        // Check if the clicked element is a sortable table header in the sliding results table
+        if (target.classList && target.classList.contains('sortable') && 
+            target.closest('table') && target.closest('table').querySelector('#sliding-results-table')) {
+            
+            // Skip HLA Class column
+            if (target.textContent.includes('HLA Class')) {
+                return;
+            }
+            
+            // Get the column name (without the sorting icon)
+            let columnName = target.textContent.trim().split(' ')[0].toLowerCase();
+            
+            // Check if we're toggling sort direction
+            let sortDirection = 'asc';
+            if (target.classList.contains('sort-asc')) {
+                sortDirection = 'desc';
+            } else if (target.classList.contains('sort-desc')) {
+                sortDirection = 'asc';
+            }
+            
+            sortTableByColumn(columnName, sortDirection);
+        }
+    });
+    
+    // Function to sort table by column
+    function sortTableByColumn(columnName, direction = 'asc') {
+        if (!slidingResults) return;
+        
+        // Map column name to property name
+        const propertyMap = {
+            'position': 'position',
+            'peptide': 'peptide',
+            'length': 'length',
+            'probability': 'probability',
+            'result': 'is_epitope'
+        };
+        
+        const property = propertyMap[columnName] || 'position';
+        
+        // Update the sort select if it exists
+        if (sortSelect && propertyMap[columnName]) {
+            if (sortSelect.querySelector(`option[value="${property}"]`)) {
+                sortSelect.value = property;
+            }
+        }
+        
+        // Remove all sort classes from headers
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+        });
+        
+        // Add sort class to current header
+        const headerCell = Array.from(document.querySelectorAll('th.sortable')).find(
+            th => th.textContent.trim().toLowerCase().startsWith(columnName)
+        );
+        
+        if (headerCell) {
+            headerCell.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+        
+        // Sort direction affects how we sort
+        const multiplier = direction === 'asc' ? 1 : -1;
+        
+        renderSlidingResults(property, multiplier);
+    }
 
     // Form submission
     predictionForm.addEventListener('submit', async (e) => {
@@ -226,8 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
             (${(data.epitope_density * 100).toFixed(1)}% epitope density) using HLA class ${data.hla_class} prediction.
         `;
         
-        // Render the table with current filter/sort settings
-        renderSlidingResults();
+        // Initialize table sorting (default to position)
+        sortTableByColumn('position', 'asc');
         
         // Create visualizations
         createDensityChart(data);
@@ -237,12 +332,12 @@ document.addEventListener('DOMContentLoaded', () => {
         slidingResultsSection.classList.remove('d-none');
     }
     
-    function renderSlidingResults() {
+    function renderSlidingResults(sortProperty = null, sortMultiplier = 1) {
         if (!slidingResults) return;
         
         // Get current filter and sort settings
         const showOnlyEpitopes = showEpitopeOnly.checked;
-        const sortBy = sortSelect.value;
+        const sortBy = sortProperty || sortSelect.value;
         
         // Clear previous results
         slidingResultsTable.innerHTML = '';
@@ -255,14 +350,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Sort results
         results.sort((a, b) => {
+            let comparison = 0;
+            
             if (sortBy === 'position') {
-                return a.position - b.position;
+                comparison = a.position - b.position;
             } else if (sortBy === 'probability') {
-                return b.probability - a.probability;
+                comparison = b.probability - a.probability;
             } else if (sortBy === 'length') {
-                return a.length - b.length;
+                comparison = a.length - b.length;
+            } else if (sortBy === 'peptide') {
+                comparison = a.peptide.localeCompare(b.peptide);
+            } else if (sortBy === 'is_epitope' || sortBy === 'result') {
+                // Sort by epitope status (true values first)
+                comparison = b.is_epitope - a.is_epitope;
             }
-            return 0;
+            
+            return comparison * sortMultiplier;
         });
         
         // Add results to table
