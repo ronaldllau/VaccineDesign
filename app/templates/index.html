@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransHLA Epitope Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">TransHLA Epitope Predictor</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h4>Peptide HLA Epitope Prediction</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <p><strong>Instructions:</strong> Enter a peptide sequence to predict its potential as an HLA epitope.</p>
+                            <p><strong>Length requirements:</strong></p>
+                            <ul>
+                                <li>HLA Class I epitopes: 8-14 amino acids</li>
+                                <li>HLA Class II epitopes: 13-21 amino acids</li>
+                            </ul>
+                            <p class="mb-0"><small>Valid amino acids: A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y</small></p>
+                        </div>
+
+                        <form id="prediction-form" class="mb-4">
+                            <div class="mb-3">
+                                <label for="peptide-sequence" class="form-label">Peptide Sequence</label>
+                                <input type="text" class="form-control" id="peptide-sequence" 
+                                    placeholder="e.g., GILGFVFTL" required>
+                                <div class="form-text">Enter a single peptide sequence using standard amino acid letters.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="predict-btn">
+                                Predict
+                                <span class="spinner-border spinner-border-sm d-none" id="loading-spinner" role="status"></span>
+                            </button>
+                        </form>
+
+                        <div id="results-section" class="mt-4 d-none">
+                            <h5>Prediction Results for: <span id="result-peptide"></span></h5>
+                            <div class="alert alert-success" id="prediction-summary"></div>
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Peptide</th>
+                                                    <th>Probability Score</th>
+                                                    <th>Result</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="results-table-body">
+                                                <!-- Results will be inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">Prediction Visualization</div>
+                                        <div class="card-body">
+                                            <canvas id="results-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="error-message" class="alert alert-danger mt-3 d-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5>About TransHLA Epitope Prediction</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>This tool uses <a href="https://github.com/SkywalkerLuke/TransHLA" target="_blank">TransHLA</a>, a hybrid transformer model for HLA-presented epitope detection.</p>
+                        <p>TransHLA is the first tool capable of directly identifying peptides as epitopes without the need for inputting HLA alleles.</p>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>TransHLA_I: For shorter peptides (8-14 amino acids) presented by HLA class I molecules</li>
+                            <li>TransHLA_II: For longer peptides (13-21 amino acids) presented by HLA class II molecules</li>
+                            <li>Utilizes transformer encoder module and deep CNN for prediction</li>
+                            <li>Trained using pretrained sequence embeddings from ESM2 and contact map structural features</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">TransHLA Epitope Predictor &copy; 2023 | Built with <a href="https://github.com/SkywalkerLuke/TransHLA">TransHLA</a></p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 

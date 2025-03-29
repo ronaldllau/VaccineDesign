@@ -1,0 +1,86 @@
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.card {
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: none;
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+input.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.spinner-border {
+    margin-left: 0.5rem;
+}
+
+.table {
+    font-size: 0.95rem;
+}
+
+.result-positive {
+    font-weight: 600;
+    color: #198754;
+}
+
+.result-negative {
+    color: #6c757d;
+}
+
+.alert-info {
+    background-color: #e7f5ff;
+    border-color: #b6e0fe;
+    color: #084298;
+}
+
+footer {
+    border-top: 1px solid #e9ecef;
+}
+
+/* Visualization styles */
+.card-header {
+    font-size: 1rem;
+}
+
+/* Animation for loading */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+#results-section {
+    animation: fadeIn 0.5s ease-in;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-4 {
+        margin-top: 1.5rem;
+    }
+} 
