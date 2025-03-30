@@ -1,0 +1,35 @@
+{
+  "name": "transhla-epitope-predictor",
+  "version": "1.0.0",
+  "description": "TransHLA Epitope Predictor with React frontend",
+  "main": "run.py",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "backend": "python run.py",
+    "start": "node start.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronaldllau/VaccineDesign.git"
+  },
+  "keywords": [
+    "transhla",
+    "epitope",
+    "prediction",
+    "vaccine",
+    "design"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ronaldllau/VaccineDesign/issues"
+  },
+  "homepage": "https://github.com/ronaldllau/VaccineDesign#readme",
+  "dependencies": {
+    "@mantine/core": "^7.6.1",
+    "@mantine/hooks": "^7.6.1",
+    "react-hook-form": "^7.51.0",
+    "recharts": "^2.13.0"
+  }
+} 

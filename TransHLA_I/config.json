@@ -12,5 +12,5 @@
   "n_layers": 6,
   "pooling_size": 2,
   "region_embedding_size": 3,
-  "transformers_version": "4.37.2"
+  "transformers_version": "4.48.1"
 }
