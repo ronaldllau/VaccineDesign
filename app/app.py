@@ -1,54 +1,54 @@
-from flask import Flask, render_template, request, jsonify
 import os
 import sys
-import pandas as pd
-import numpy as np
 import json
 import torch
+import numpy as np
+import pandas as pd
 import traceback
-from transformers import AutoTokenizer
-from werkzeug.utils import secure_filename
 import time
-from functools import lru_cache
+from flask import Flask, request, jsonify, send_from_directory
+from transformers import AutoTokenizer, AutoModel
+from werkzeug.utils import secure_filename
 
-# Remove hardcoded path and handle imports more gracefully
-try:
-    from transformers import AutoModel
-    print("Successfully imported transformers")
-except ImportError:
-    print("Transformers not installed. Please run: pip install transformers")
+# Configure paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+# Set device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 
-# Load TransHLA models and tokenizer
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Prediction cache
+MAX_CACHE_SIZE = 100
+prediction_cache = {}
+
+# Model loading flag and instances
+models_loaded = False
 tokenizer = None
 transHLA_I_model = None
 transHLA_II_model = None
 
-# Cache to store previously computed results (limited to 100 entries)
-prediction_cache = {}
-MAX_CACHE_SIZE = 100
-
 def load_models():
+    """Attempt to load the TransHLA models."""
     global tokenizer, transHLA_I_model, transHLA_II_model
-    print(f"Using {device} device")
+    
     try:
         print("Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
-        print("Tokenizer loaded successfully")
         
         print("Loading TransHLA_I model...")
         transHLA_I_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_I", trust_remote_code=True)
         transHLA_I_model.to(device)
         transHLA_I_model.eval()
-        print("TransHLA_I model loaded successfully")
         
         print("Loading TransHLA_II model...")
         transHLA_II_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_II", trust_remote_code=True)
         transHLA_II_model.to(device)
         transHLA_II_model.eval()
-        print("TransHLA_II model loaded successfully")
         
         print("All models loaded successfully!")
         return True
@@ -57,287 +57,240 @@ def load_models():
         traceback.print_exc()
         return False
 
-# Try to load models at startup
-models_loaded = load_models()
+# Load models on startup
+try:
+    print("Loading models on startup...")
+    models_loaded = load_models()
+    if models_loaded:
+        print("Models loaded successfully on startup")
+    else:
+        print("Failed to load models on startup, will try again when needed")
+except Exception as e:
+    print(f"Error during startup model loading: {str(e)}")
+    traceback.print_exc()
 
-def pad_sequences(sequences, target_length):
-    """Pad sequences to target length."""
-    for sequence in sequences:
-        padding_length = target_length - len(sequence)
-        if padding_length > 0:
-            sequence.extend([1] * padding_length)
-    return sequences
+def is_valid_peptide(peptide):
+    """Check if a peptide contains only valid amino acid letters."""
+    valid_aa = set("ACDEFGHIKLMNPQRSTVWY")
+    return set(peptide.upper()).issubset(valid_aa)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+def generate_peptides(sequence, hla_class, fixed_window_size=None):
+    """Generate all possible peptides from a sequence based on HLA class.
+    If fixed_window_size is provided, only generate peptides of that exact length."""
+    sequence = sequence.upper()
+    peptides = []
+    
+    # Define peptide length range based on HLA class
+    if hla_class == "I":
+        if fixed_window_size:
+            length_range = [fixed_window_size]
+        else:
+            length_range = range(8, 15)  # 8-14 amino acids for Class I
+    else:  # Class II
+        if fixed_window_size:
+            length_range = [fixed_window_size]
+        else:
+            length_range = range(13, 22)  # 13-21 amino acids for Class II
+    
+    # Generate all possible peptides within the length range
+    for length in length_range:
+        for i in range(len(sequence) - length + 1):
+            peptide = sequence[i:i+length]
+            if is_valid_peptide(peptide):
+                peptides.append({
+                    "peptide": peptide,
+                    "position": i + 1,  # 1-indexed position
+                    "length": length,
+                    "class": hla_class
+                })
+    
+    return peptides
+
+def pad_sequences(batch, max_length):
+    """Pad sequences to the same length."""
+    padded_batch = []
+    for seq in batch:
+        padded_seq = seq + [1] * (max_length - len(seq))  # 1 is the padding token id
+        padded_batch.append(padded_seq)
+    return padded_batch
+
+def run_prediction(peptides, hla_class):
+    """Run prediction for each peptide and return results."""
+    results = []
+    
+    # Choose the appropriate model based on HLA class
+    if hla_class == "I":
+        model = transHLA_I_model
+    else:  # Class II
+        model = transHLA_II_model
+    
+    # Process each peptide
+    with torch.no_grad():
+        for peptide_data in peptides:
+            peptide = peptide_data["peptide"]
+            
+            # Tokenize the peptide
+            batch_encoding = tokenizer(peptide)['input_ids']
+            
+            # Convert to tensor and move to device
+            if hla_class == "I":
+                max_length = 16  # Max length for class I
+            else:
+                max_length = 23  # Max length for class II
+                
+            padded_encoding = pad_sequences([batch_encoding], max_length)[0]
+            input_tensor = torch.tensor([padded_encoding]).to(device)
+            
+            # Run the model
+            outputs, _ = model(input_tensor)
+            
+            # Get the prediction probability
+            probability = outputs[0][1].item()
+            
+            # Determine if it's an epitope based on a threshold
+            is_epitope = probability > 0.5
+            
+            # Add results
+            results.append({
+                "peptide": peptide,
+                "position": peptide_data["position"],
+                "length": peptide_data["length"],
+                "class": peptide_data["class"],
+                "probability": probability,
+                "is_epitope": is_epitope
+            })
+    
+    return results
 
 @app.route('/predict', methods=['POST'])
 def predict():
     if request.method == 'POST':
         start_time = time.time()
-        data = request.get_json()
-        peptide_seq = data.get('sequence', '')
-        hla_class = data.get('hla_class', 'I')  # Default to Class I if not specified
-        
-        if not peptide_seq:
-            return jsonify({'error': 'No peptide sequence provided'}), 400
+        try:
+            data = request.get_json()
             
-        # Check if models are loaded
-        global models_loaded, tokenizer, transHLA_I_model, transHLA_II_model
-        if not models_loaded or tokenizer is None or transHLA_I_model is None or transHLA_II_model is None:
-            # Try loading models one more time
-            models_loaded = load_models()
-            if not models_loaded:
-                return jsonify({'error': 'Models could not be loaded. Please check server logs.'}), 500
+            # Extract parameters
+            sequence = data.get('sequence', '').strip().upper()
+            mode = data.get('mode', 'single')
+            hla_class = data.get('hla_class', 'I')
+            use_fixed_window_size = data.get('useFixedWindowSize', False)
+            window_size = data.get('windowSize') if use_fixed_window_size else None
             
-        # Basic validation
-        if not is_valid_peptide(peptide_seq):
-            return jsonify({'error': 'Invalid peptide sequence. Use only valid amino acid letters.'}), 400
-        
-        process_mode = data.get('mode', 'single')
-        
-        if process_mode == 'single':
-            try:
+            # Check if models are loaded
+            global models_loaded, tokenizer, transHLA_I_model, transHLA_II_model
+            if not models_loaded or tokenizer is None or transHLA_I_model is None or transHLA_II_model is None:
+                # Try loading models one more time
+                models_loaded = load_models()
+                if not models_loaded:
+                    return jsonify({'error': 'Models could not be loaded. Please check server logs.'}), 500
+            
+            # Validate sequence
+            if not sequence:
+                return jsonify({"error": "No peptide sequence provided"}), 400
+            
+            if not is_valid_peptide(sequence):
+                return jsonify({"error": "Peptide contains invalid amino acid letters"}), 400
+            
+            # Single peptide mode
+            if mode == 'single':
                 # Generate cache key
-                cache_key = f"single_{peptide_seq}_{hla_class}"
+                cache_key = f"single_{sequence}_{hla_class}"
                 
                 # Check if result is in cache
                 if cache_key in prediction_cache:
                     print(f"Cache hit for {cache_key}")
                     return jsonify(prediction_cache[cache_key])
                 
-                # Run prediction for a single peptide
-                predictions = run_prediction(peptide_seq, hla_class)
+                # Validate peptide length
+                if hla_class == 'I' and not (8 <= len(sequence) <= 14):
+                    return jsonify({"error": "HLA class I peptides should be 8-14 amino acids long"}), 400
+                
+                if hla_class == 'II' and not (13 <= len(sequence) <= 21):
+                    return jsonify({"error": "HLA class II peptides should be 13-21 amino acids long"}), 400
+                
+                # Run prediction
+                peptides = [{"peptide": sequence, "position": 1, "length": len(sequence), "class": hla_class}]
+                results = run_prediction(peptides, hla_class)
+                
+                response = {
+                    "peptide": sequence,
+                    "results": results
+                }
                 
                 # Cache the result
-                prediction_cache[cache_key] = predictions
+                prediction_cache[cache_key] = response
                 # Remove oldest entry if cache is full
                 if len(prediction_cache) > MAX_CACHE_SIZE:
                     oldest_key = next(iter(prediction_cache))
                     del prediction_cache[oldest_key]
                 
                 print(f"Prediction completed in {time.time() - start_time:.2f} seconds")
-                return jsonify(predictions)
-            except Exception as e:
-                print(f"Error in single prediction mode: {str(e)}")
-                traceback.print_exc()
-                return jsonify({'error': f"Error during prediction: {str(e)}"}), 500
-        elif process_mode == 'sliding':
-            try:
-                # Generate cache key
-                cache_key = f"sliding_{peptide_seq}_{hla_class}"
+                return jsonify(response)
+            
+            # Sliding window mode
+            else:
+                # Generate cache key, including window size if used
+                cache_key = f"sliding_{sequence}_{hla_class}_{window_size if window_size else 'all'}"
                 
                 # Check if result is in cache
                 if cache_key in prediction_cache:
                     print(f"Cache hit for {cache_key}")
                     return jsonify(prediction_cache[cache_key])
                 
-                # Generate and predict all possible peptides
-                predictions = run_sliding_window_prediction(peptide_seq, hla_class)
+                # Process window_size if provided
+                if window_size is not None:
+                    window_size = int(window_size)
+                    
+                    # Validate window size
+                    if hla_class == 'I' and not (8 <= window_size <= 14):
+                        return jsonify({"error": "HLA class I window size should be 8-14 amino acids"}), 400
+                    
+                    if hla_class == 'II' and not (13 <= window_size <= 21):
+                        return jsonify({"error": "HLA class II window size should be 13-21 amino acids"}), 400
+                
+                # Generate all peptides
+                peptides = generate_peptides(sequence, hla_class, window_size)
+                
+                if not peptides:
+                    return jsonify({"error": "No valid peptides could be generated from the input sequence"}), 400
+                
+                # Run prediction
+                results = run_prediction(peptides, hla_class)
+                
+                # Count epitopes
+                epitope_count = sum(1 for r in results if r["is_epitope"])
+                
+                response = {
+                    "original_sequence": sequence,
+                    "hla_class": hla_class,
+                    "results": results,
+                    "total_peptides": len(results),
+                    "epitope_count": epitope_count,
+                    "epitope_density": epitope_count / len(results) if results else 0
+                }
                 
                 # Cache the result
-                prediction_cache[cache_key] = predictions
+                prediction_cache[cache_key] = response
                 # Remove oldest entry if cache is full
                 if len(prediction_cache) > MAX_CACHE_SIZE:
                     oldest_key = next(iter(prediction_cache))
                     del prediction_cache[oldest_key]
                 
                 print(f"Sliding window analysis completed in {time.time() - start_time:.2f} seconds")
-                return jsonify(predictions)
-            except Exception as e:
-                print(f"Error in sliding window mode: {str(e)}")
-                traceback.print_exc()
-                return jsonify({'error': f"Error during prediction: {str(e)}"}), 500
-        else:
-            return jsonify({'error': 'Invalid processing mode'}), 400
+                return jsonify(response)
+        except Exception as e:
+            print(f"Error in prediction: {str(e)}")
+            traceback.print_exc()
+            return jsonify({"error": str(e)}), 500
 
-def is_valid_peptide(peptide):
-    """Check if peptide contains only valid amino acid letters."""
-    valid_aa = set('ACDEFGHIKLMNPQRSTVWY')
-    return set(peptide.upper()).issubset(valid_aa)
-
-def generate_peptides(sequence, hla_class='I'):
-    """Generate all possible peptides within the length range appropriate for the HLA class."""
-    peptides = []
-    
-    # Validate sequence and convert to uppercase
-    sequence = sequence.upper()
-    
-    # Set length ranges based on HLA class
-    if hla_class == 'I':
-        min_length = 8
-        max_length = 14
-    else:  # Class II
-        min_length = 13
-        max_length = 21
-    
-    # Generate peptides for each possible length
-    for length in range(min_length, min(max_length + 1, len(sequence) + 1)):
-        # Slide a window of the current length over the sequence
-        for i in range(len(sequence) - length + 1):
-            peptide = sequence[i:i+length]
-            peptides.append({
-                'peptide': peptide,
-                'position': i + 1,  # 1-indexed position
-                'length': length
-            })
-    
-    return peptides
-
-def run_sliding_window_prediction(sequence, hla_class='I'):
-    """Run predictions on all possible peptides within the sequence with batched processing."""
-    # Generate all valid peptides for the specified HLA class
-    peptide_list = generate_peptides(sequence, hla_class)
-    
-    if not peptide_list:
-        raise ValueError(f"No valid peptides could be generated for HLA class {hla_class} from the given sequence")
-    
-    # Process peptides in batches for better performance
-    batch_size = 8  # Adjust based on your hardware
-    predictions = []
-    
-    for i in range(0, len(peptide_list), batch_size):
-        batch = peptide_list[i:i+batch_size]
-        batch_predictions = process_peptide_batch(batch, hla_class)
-        predictions.extend(batch_predictions)
-    
-    # Sort by position and then by length
-    predictions.sort(key=lambda x: (x['position'], x['length']))
-    
-    # Calculate overall epitope density
-    total_peptides = len(predictions)
-    epitope_count = sum(1 for p in predictions if p['is_epitope'])
-    epitope_density = epitope_count / total_peptides if total_peptides > 0 else 0
-    
-    return {
-        'original_sequence': sequence,
-        'total_peptides': total_peptides,
-        'epitope_count': epitope_count,
-        'epitope_density': epitope_density,
-        'hla_class': hla_class,
-        'results': predictions
-    }
-
-def process_peptide_batch(peptide_batch, hla_class):
-    """Process a batch of peptides at once for faster prediction."""
-    results = []
-    
-    # Select model based on HLA class
-    if hla_class == 'I':
-        model = transHLA_I_model
-        max_length = 16
-    else:  # Class II
-        model = transHLA_II_model
-        max_length = 23
-    
-    # Prepare batch for processing
-    peptide_sequences = [item['peptide'].upper() for item in peptide_batch]
-    positions = [item['position'] for item in peptide_batch]
-    lengths = [item['length'] for item in peptide_batch]
-    
-    # Tokenize all peptides in the batch
-    batch_encoding = tokenizer(peptide_sequences)['input_ids']
-    padded_encoding = pad_sequences(batch_encoding, max_length)
-    
-    # Convert to tensor and move to device
-    input_tensor = torch.tensor(padded_encoding).to(device)
-    
-    # Get predictions for batch
-    with torch.no_grad():
-        outputs, representations = model(input_tensor)
-    
-    # Process outputs for each peptide in batch
-    for i, (peptide, position, length) in enumerate(zip(peptide_sequences, positions, lengths)):
-        probability = outputs[i][1].item()  # Probability of being an epitope
-        is_epitope = probability > 0.5
-        
-        results.append({
-            'peptide': peptide,
-            'position': position,
-            'length': length,
-            'class': hla_class,
-            'probability': probability,
-            'is_epitope': is_epitope
-        })
-    
-    return results
-
-# Apply LRU cache to single peptide predictions for common peptides
-@lru_cache(maxsize=256)
-def _cached_prediction(peptide_seq, hla_class):
-    """Cached version of the core prediction logic."""
-    # Select model based on HLA class
-    if hla_class == 'I':
-        model = transHLA_I_model
-        max_length = 16
-    else:  # Class II
-        model = transHLA_II_model
-        max_length = 23
-    
-    # Tokenize the peptide
-    peptide_encoding = tokenizer([peptide_seq])['input_ids']
-    padded_encoding = pad_sequences(peptide_encoding, max_length)
-    
-    # Convert to tensor and move to device
-    input_tensor = torch.tensor(padded_encoding).to(device)
-    
-    # Get the prediction
-    with torch.no_grad():
-        outputs, representations = model(input_tensor)
-    
-    # Process outputs
-    probability = outputs[0][1].item()  # Probability of being an epitope
-    label = 1 if probability > 0.5 else 0
-    
-    return probability, label
-
-def run_prediction(peptide_seq, hla_class='I'):
-    """Run epitope prediction using TransHLA."""
-    global tokenizer, transHLA_I_model, transHLA_II_model
-    
-    # Check if models are loaded
-    if tokenizer is None or transHLA_I_model is None or transHLA_II_model is None:
-        raise Exception("Models are not loaded properly")
-        
-    try:
-        peptide_seq = peptide_seq.upper()
-        
-        # Select model based on HLA class
-        if hla_class == 'I':
-            max_length = 16
-            
-            # Validate peptide length for Class I
-            if len(peptide_seq) < 8 or len(peptide_seq) > 14:
-                print(f"Warning: Peptide length {len(peptide_seq)} may not be optimal for HLA Class I prediction")
-        else:  # Class II
-            max_length = 23
-            
-            # Validate peptide length for Class II
-            if len(peptide_seq) < 13 or len(peptide_seq) > 21:
-                print(f"Warning: Peptide length {len(peptide_seq)} may not be optimal for HLA Class II prediction")
-        
-        # Use the cached prediction
-        probability, label = _cached_prediction(peptide_seq, hla_class)
-        
-        # Create results dictionary
-        prediction_result = {
-            'peptide': peptide_seq,
-            'probability': probability,
-            'is_epitope': (label == 1),
-            'hla_class': hla_class
-        }
-        
-        # Format for the frontend
-        return {
-            'peptide': peptide_seq,
-            'results': [prediction_result]
-        }
-        
-    except Exception as e:
-        print(f"Prediction error: {str(e)}")
-        traceback.print_exc()
-        raise Exception(f"Error during prediction: {str(e)}")
+# Serve static frontend files in production
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True) 

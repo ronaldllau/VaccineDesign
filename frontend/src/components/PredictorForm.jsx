@@ -9,13 +9,17 @@ import {
   Radio, 
   Group, 
   Button, 
-  Text,
+  Text, 
   Alert,
   Box,
-  Divider
+  Divider,
+  Checkbox,
+  Select
 } from '@mantine/core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTriangleExclamation } from '@fortawesome/free-solid-svg-icons'
+import { notifications } from '@mantine/notifications'
+import axios from 'axios'
 
 // Custom styled components
 const StyledPaper = ({ children, interactive = false, ...props }) => (
@@ -104,13 +108,19 @@ const StyledButton = ({ children, ...props }) => (
   </Button>
 );
 
-const PredictorForm = ({ onSubmit, loading }) => {
+const PredictorForm = ({ onPredictionComplete, isLoading, setIsLoading }) => {
   const [lengthWarning, setLengthWarning] = useState('')
+  const [useFixedWindowSize, setUseFixedWindowSize] = useState(false)
+  const [windowSize, setWindowSize] = useState(9) // Default for Class I
+  const [windowSizeOptions, setWindowSizeOptions] = useState([])
+  
   const { setValue, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: {
       sequence: '',
       mode: 'single',
-      hlaClass: 'I'
+      hlaClass: 'I',
+      useFixedWindowSize: false,
+      windowSize: '9'
     }
   })
 
@@ -118,6 +128,38 @@ const PredictorForm = ({ onSubmit, loading }) => {
   const mode = watch('mode')
   const hlaClass = watch('hlaClass')
 
+  // Update window size options when HLA class changes
+  useEffect(() => {
+    // Set window size options based on HLA class
+    if (hlaClass === 'I') {
+      setWindowSizeOptions([
+        { value: '8', label: '8 amino acids' },
+        { value: '9', label: '9 amino acids' },
+        { value: '10', label: '10 amino acids' },
+        { value: '11', label: '11 amino acids' },
+        { value: '12', label: '12 amino acids' },
+        { value: '13', label: '13 amino acids' },
+        { value: '14', label: '14 amino acids' }
+      ]);
+      setWindowSize(9)
+      setValue('windowSize', '9')
+    } else {
+      setWindowSizeOptions([
+        { value: '13', label: '13 amino acids' },
+        { value: '14', label: '14 amino acids' },
+        { value: '15', label: '15 amino acids' },
+        { value: '16', label: '16 amino acids' },
+        { value: '17', label: '17 amino acids' },
+        { value: '18', label: '18 amino acids' },
+        { value: '19', label: '19 amino acids' },
+        { value: '20', label: '20 amino acids' },
+        { value: '21', label: '21 amino acids' }
+      ]);
+      setWindowSize(15)
+      setValue('windowSize', '15')
+    }
+  }, [hlaClass, setValue])
+  
   // Input validation
   useEffect(() => {
     checkPeptideLength()
@@ -189,11 +231,35 @@ const PredictorForm = ({ onSubmit, loading }) => {
     setValue('hlaClass', value);
   }
 
+  const handleUseFixedWindowSizeChange = (event) => {
+    const checked = event.currentTarget.checked;
+    setUseFixedWindowSize(checked);
+    setValue('useFixedWindowSize', checked);
+  }
+
+  const handleWindowSizeChange = (value) => {
+    setWindowSize(value);
+    setValue('windowSize', value);
+  }
+
   const submitForm = (data) => {
     const peptideSeq = data.sequence?.trim().toUpperCase() || ''
     
     if (!peptideSeq) {
+      notifications.show({
+        title: 'Input required',
+        message: 'Please enter an amino acid sequence',
+        color: 'red'
+      });
       return
+    }
+    
+    if (lengthWarning) {
+      notifications.show({
+        title: 'Validation Warning',
+        message: lengthWarning,
+        color: 'orange'
+      });
     }
     
     // Validate peptide length for single peptide mode
@@ -205,7 +271,59 @@ const PredictorForm = ({ onSubmit, loading }) => {
       }
     }
     
-    onSubmit(data)
+    setIsLoading(true);
+    
+    // Configure request based on mode
+    const requestData = {
+      sequence: peptideSeq,
+      mode: data.mode,
+      hla_class: data.hlaClass
+    };
+    
+    // Add window size parameters if in sliding window mode and fixed size is enabled
+    if (data.mode === 'sliding' && data.useFixedWindowSize) {
+      requestData.useFixedWindowSize = true;
+      requestData.windowSize = parseInt(data.windowSize);
+    }
+    
+    // Submit the request
+    axios.post('/predict', requestData)
+      .then(response => {
+        console.log('Prediction results:', response.data);
+        onPredictionComplete(response.data);
+      })
+      .catch(error => {
+        console.error('Prediction error:', error);
+        let errorMessage = 'An error occurred during prediction.';
+        if (error.response && error.response.data && error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+        
+        notifications.show({
+          title: 'Prediction Failed',
+          message: errorMessage,
+          color: 'red'
+        });
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }
+
+  // For loading sample sequences
+  const loadSample = () => {
+    const sampleSequences = {
+      'I': {
+        single: 'YANSVFNIC',
+        sliding: 'AYANSVFNICQAVTA'
+      },
+      'II': {
+        single: 'LGLWLSVGALDFTLS',
+        sliding: 'AALGLWLSVGALDFTLSR'
+      }
+    };
+    
+    setValue('sequence', sampleSequences[hlaClass][mode]);
   }
 
   return (
@@ -366,6 +484,55 @@ const PredictorForm = ({ onSubmit, loading }) => {
             </Grid.Col>
           </Grid>
 
+          {/* Window Size Options - Only show when Sliding Window is selected */}
+          {mode === 'sliding' && (
+            <div style={{ backgroundColor: 'white', padding: '1rem', border: '1px solid #DCE8E0', borderRadius: '0.375rem' }}>
+              <Text weight={500} style={{ textTransform: 'uppercase', letterSpacing: '0.03em', color: '#33523E', marginBottom: '0.75rem' }}>
+                ADVANCED OPTIONS
+              </Text>
+              
+              <Checkbox
+                label="Use fixed peptide length"
+                checked={useFixedWindowSize}
+                onChange={handleUseFixedWindowSizeChange}
+                styles={{
+                  input: {
+                    backgroundColor: 'white',
+                    borderColor: '#C6D8CC',
+                    '&:checked': {
+                      backgroundColor: '#6E9F7F',
+                      borderColor: '#6E9F7F'
+                    }
+                  }
+                }}
+              />
+              
+              {useFixedWindowSize && (
+                <div style={{ marginTop: '0.75rem', marginLeft: '1.75rem' }}>
+                  <Text size="sm" style={{ marginBottom: '0.5rem', color: '#33523E' }}>Select peptide length:</Text>
+                  <Select
+                    data={windowSizeOptions}
+                    value={windowSize.toString()}
+                    onChange={handleWindowSizeChange}
+                    style={{ maxWidth: '200px' }}
+                    styles={{
+                      input: {
+                        backgroundColor: 'white',
+                        border: '1px solid #DCE8E0',
+                        '&:focus': {
+                          borderColor: '#6E9F7F',
+                        }
+                      }
+                    }}
+                  />
+                  <Text size="xs" style={{ marginTop: '0.5rem', color: '#7F8A99' }}>
+                    This will reduce the number of predictions by only analyzing peptides of the selected length.
+                  </Text>
+                </div>
+              )}
+            </div>
+          )}
+          
           {lengthWarning && (
             <Alert 
               color="orange"
@@ -384,11 +551,29 @@ const PredictorForm = ({ onSubmit, loading }) => {
               </div>
             </Alert>
           )}
-
-          <Group position="left">
+          
+          <Group position="apart">
+            <Button 
+              variant="outline" 
+              onClick={loadSample} 
+              color="gray"
+              styles={{
+                root: {
+                  border: '1px solid #DCE8E0',
+                  color: '#33523E',
+                  '&:hover': {
+                    backgroundColor: '#EFF5F1',
+                    borderColor: '#6E9F7F'
+                  }
+                }
+              }}
+            >
+              LOAD SAMPLE
+            </Button>
+          
             <StyledButton 
               type="submit"
-              loading={loading}
+              loading={isLoading}
             >
               PREDICT
             </StyledButton>

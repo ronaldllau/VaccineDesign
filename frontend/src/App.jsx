@@ -56,45 +56,21 @@ function App() {
   const [slidingResults, setSlidingResults] = useState(null)
   const [showResults, setShowResults] = useState(false)
 
-  // Handle form submission and API call
-  const handleSubmit = async (formData) => {
-    setLoading(true)
-    setError(null)
+  // Handle prediction complete from the PredictorForm
+  const handlePredictionComplete = (data) => {
+    // Reset existing results
     setSingleResults(null)
     setSlidingResults(null)
-
-    try {
-      const response = await fetch('/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sequence: formData.sequence,
-          mode: formData.mode,
-          hla_class: formData.hlaClass,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Prediction failed. Please try again.')
-      }
-
-      if (formData.mode === 'single') {
-        setSingleResults(data)
-      } else {
-        setSlidingResults(data)
-      }
-      
-      // Show results view after successful prediction
-      setShowResults(true)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+    
+    // Check if the response is for a single peptide or sliding window
+    if (data.peptide) {
+      setSingleResults(data)
+    } else {
+      setSlidingResults(data)
     }
+    
+    // Show results view
+    setShowResults(true)
   }
   
   // Function to go back to the form view
@@ -195,8 +171,9 @@ function App() {
           /* Show the predictor form if not in results view */
           <>
             <PredictorForm 
-              onSubmit={handleSubmit} 
-              loading={loading} 
+              onPredictionComplete={handlePredictionComplete} 
+              isLoading={loading}
+              setIsLoading={setLoading}
             />
 
             {error && (
@@ -252,8 +229,8 @@ function App() {
             </StyledPaper>
           </div>
         )}
-
-        {!showResults && <AboutSection />}
+        
+        <AboutSection />
       </Container>
     </AppShell>
   )

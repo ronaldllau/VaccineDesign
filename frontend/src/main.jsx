@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import App from './App.jsx'
 import './index.css'
+import { Notifications } from '@mantine/notifications'
 
 // Corporate-inspired minimal theme
 const theme = {
@@ -76,6 +77,7 @@ const theme = {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <MantineProvider theme={theme} withGlobalStyles withNormalizeCSS>
+      <Notifications position="top-right" zIndex={2000} />
       <App />
     </MantineProvider>
   </React.StrictMode>,
