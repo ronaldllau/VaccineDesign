@@ -94,7 +94,7 @@ const SlidingResults = ({ results }) => {
     
     const ctx = densityChartRef.current.getContext('2d')
     
-    // Create density chart - pie chart showing epitope vs non-epitope ratio
+    // Create density chart with themed colors
     densityChartInstance.current = new Chart(ctx, {
       type: 'pie',
       data: {
@@ -102,21 +102,31 @@ const SlidingResults = ({ results }) => {
         datasets: [{
           data: [results.epitope_count, results.total_peptides - results.epitope_count],
           backgroundColor: [
-            'rgba(54, 162, 235, 0.7)',
-            'rgba(211, 211, 211, 0.7)'
+            'rgba(94, 159, 127, 0.7)', // Green primary with opacity
+            'rgba(233, 235, 238, 0.7)'  // Gray light with opacity
           ],
           borderColor: [
-            'rgba(54, 162, 235, 1)',
-            'rgba(211, 211, 211, 1)'
+            'rgba(94, 159, 127, 1)', // Green primary
+            'rgba(185, 194, 204, 1)'  // Gray mid
           ],
           borderWidth: 1
         }]
       },
       options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: {
           legend: {
             position: 'bottom',
+            labels: {
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 11
+              },
+              color: '#3A424E', // Gray dark
+              boxWidth: 12,
+              padding: 10
+            }
           },
           tooltip: {
             callbacks: {
@@ -126,14 +136,31 @@ const SlidingResults = ({ results }) => {
                 const percent = ((count / results.total_peptides) * 100).toFixed(1)
                 return `${label}: ${count} (${percent}%)`
               }
-            }
+            },
+            titleFont: {
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 13
+            },
+            bodyFont: {
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 12
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            titleColor: '#33523E', // Green dark
+            bodyColor: '#3A424E',   // Gray dark
+            borderColor: '#DCE8E0',  // Green light
+            borderWidth: 1
           },
           title: {
             display: true,
             text: `HLA Class ${results.hla_class} Epitope Density`,
             font: {
-              size: 14
-            }
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 13,
+              weight: 500
+            },
+            color: '#33523E', // Green dark
+            padding: 10
           }
         }
       }
@@ -163,7 +190,7 @@ const SlidingResults = ({ results }) => {
       }
     })
     
-    // Create distribution chart
+    // Create distribution chart with themed colors
     distributionChartInstance.current = new Chart(ctx, {
       type: 'line',
       data: {
@@ -171,18 +198,32 @@ const SlidingResults = ({ results }) => {
         datasets: [{
           label: 'Average Epitope Probability',
           data: positionData.map(p => p.probability),
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(94, 159, 127, 0.2)', // Green primary with opacity
+          borderColor: 'rgba(94, 159, 127, 1)', // Green primary
           borderWidth: 2,
           fill: true,
-          tension: 0.4
+          tension: 0.4,
+          pointBackgroundColor: 'rgba(94, 159, 127, 1)', // Green primary
+          pointBorderColor: '#fff',
+          pointRadius: 2,
+          pointHoverRadius: 4
         }]
       },
       options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: {
           legend: {
             position: 'bottom',
+            labels: {
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 11
+              },
+              color: '#3A424E', // Gray dark
+              boxWidth: 12,
+              padding: 10
+            }
           },
           tooltip: {
             callbacks: {
@@ -192,14 +233,31 @@ const SlidingResults = ({ results }) => {
               label: function(context) {
                 return `Probability: ${context.raw.toFixed(3)}`
               }
-            }
+            },
+            titleFont: {
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 13
+            },
+            bodyFont: {
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 12
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            titleColor: '#33523E', // Green dark
+            bodyColor: '#3A424E',   // Gray dark
+            borderColor: '#DCE8E0',  // Green light
+            borderWidth: 1
           },
           title: {
             display: true,
             text: `HLA Class ${results.hla_class} Epitope Probability Distribution`,
             font: {
-              size: 14
-            }
+              family: 'Helvetica, Inter, system-ui, sans-serif',
+              size: 13,
+              weight: 500
+            },
+            color: '#33523E', // Green dark
+            padding: 10
           }
         },
         scales: {
@@ -208,13 +266,48 @@ const SlidingResults = ({ results }) => {
             max: 1,
             title: {
               display: true,
-              text: 'Probability'
+              text: 'Probability',
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 11,
+                weight: 500
+              },
+              color: '#3A424E' // Gray dark
+            },
+            ticks: {
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 10
+              },
+              color: '#7F8A99' // Gray text
+            },
+            grid: {
+              color: 'rgba(185, 194, 204, 0.2)' // Gray mid with opacity
             }
           },
           x: {
             title: {
               display: true,
-              text: 'Position'
+              text: 'Position',
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 11,
+                weight: 500
+              },
+              color: '#3A424E' // Gray dark
+            },
+            ticks: {
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 10
+              },
+              color: '#7F8A99', // Gray text
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 8
+            },
+            grid: {
+              color: 'rgba(185, 194, 204, 0.2)' // Gray mid with opacity
             }
           }
         }
@@ -254,84 +347,143 @@ const SlidingResults = ({ results }) => {
     : results.original_sequence
   
   return (
-    <div className="results-section mb-4">
-      <h5>Sliding Window Analysis for Sequence: <span>{displaySequence}</span></h5>
-      
-      <Alert variant="info">
-        <strong>Analysis Summary:</strong> Found {results.epitope_count} potential epitopes 
-        out of {results.total_peptides} possible peptides 
-        ({(results.epitope_density * 100).toFixed(1)}% epitope density) 
-        using HLA class {results.hla_class} prediction.
-      </Alert>
-      
-      <Row className="mb-4">
-        <Col md={6}>
-          <Card>
-            <Card.Header>Epitope Density</Card.Header>
-            <Card.Body>
-              <canvas ref={densityChartRef}></canvas>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6}>
-          <Card>
-            <Card.Header>Epitope Distribution</Card.Header>
-            <Card.Body>
-              <canvas ref={distributionChartRef}></canvas>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-      
-      <Card>
-        <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">All Potential Epitopes</h5>
-          <div>
-            <Form.Check
-              inline
-              type="checkbox"
-              id="show-epitopes-only"
-              label="Show Epitopes Only"
-              checked={showOnlyEpitopes}
-              onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
-            />
-            <Form.Select 
-              size="sm" 
-              className="d-inline-block w-auto"
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value)
-                setSortDirection('asc')
-              }}
-            >
-              <option value="position">Sort by Position</option>
-              <option value="probability">Sort by Probability</option>
-              <option value="length">Sort by Length</option>
-              <option value="peptide">Sort by Peptide</option>
-              <option value="is_epitope">Sort by Result</option>
-            </Form.Select>
+    <div className="results-section">
+      <div style={{ 
+        marginBottom: '1.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.5rem'
+      }}>
+        <Alert variant="info" 
+          className="mb-0" 
+          style={{ 
+            borderLeft: '4px solid #5E9F7F',
+            backgroundColor: '#EFF5F1',
+            color: '#33523E',
+            border: '1px solid #C6D8CC',
+            padding: '1rem',
+            borderRadius: '0.375rem',
+          }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.03em' }}>ANALYSIS SUMMARY</div>
+            <div>
+              Found {results.epitope_count} potential epitopes 
+              out of {results.total_peptides} possible peptides 
+              ({(results.epitope_density * 100).toFixed(1)}% epitope density) 
+              for sequence <span style={{ fontWeight: 500 }}>{displaySequence}</span> 
+              using HLA class {results.hla_class} prediction.
+            </div>
           </div>
-        </Card.Header>
-        <Card.Body>
-          <div className="table-responsive">
-            <Table striped hover className="results-table">
+        </Alert>
+        
+        <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+          <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
+            <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
+              <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                Epitope Density
+              </div>
+              <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+                <canvas ref={densityChartRef}></canvas>
+              </div>
+            </div>
+            <div className="col-md-6" style={{ padding: '0 12px' }}>
+              <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                Epitope Distribution
+              </div>
+              <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+                <canvas ref={distributionChartRef}></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="table-container" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '1rem'
+          }}>
+            <div style={{ 
+              color: '#33523E', 
+              fontWeight: 500, 
+              textTransform: 'uppercase', 
+              fontSize: '0.9rem', 
+              letterSpacing: '0.05em',
+              marginBottom: '0.5rem'
+            }}>
+              All Potential Epitopes
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              flexWrap: 'nowrap'
+            }}>
+              <Form.Check
+                inline
+                type="checkbox"
+                id="show-epitopes-only"
+                label="Show Epitopes Only"
+                checked={showOnlyEpitopes}
+                onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
+                style={{
+                  marginRight: '1rem',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap'
+                }}
+              />
+              <Form.Select 
+                size="sm" 
+                className="d-inline-block"
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value)
+                  setSortDirection('asc')
+                }}
+                style={{
+                  width: 'auto',
+                  borderColor: '#DCE8E0',
+                  color: '#33523E',
+                  borderRadius: '4px',
+                  padding: '0.25rem 2rem 0.25rem 0.5rem',
+                  backgroundColor: 'white',
+                  minWidth: '160px'
+                }}
+              >
+                <option value="position">Sort by Position</option>
+                <option value="probability">Sort by Probability</option>
+                <option value="length">Sort by Length</option>
+                <option value="peptide">Sort by Peptide</option>
+                <option value="is_epitope">Sort by Result</option>
+              </Form.Select>
+            </div>
+          </div>
+          
+          <div className="table-responsive" style={{ backgroundColor: 'white', borderRadius: '0.375rem', border: '1px solid #DCE8E0' }}>
+            <Table striped hover className="results-table mb-0">
               <thead>
                 <tr>
-                  <th className="sortable" onClick={() => handleHeaderClick('position')}>
-                    Position {getSortIcon('position')}
+                  <th className="sortable" onClick={() => handleHeaderClick('position')}
+                    style={{ cursor: 'pointer' }}>
+                    POSITION {getSortIcon('position')}
                   </th>
-                  <th className="sortable" onClick={() => handleHeaderClick('peptide')}>
-                    Peptide {getSortIcon('peptide')}
+                  <th className="sortable" onClick={() => handleHeaderClick('peptide')}
+                    style={{ cursor: 'pointer' }}>
+                    PEPTIDE {getSortIcon('peptide')}
                   </th>
-                  <th className="sortable" onClick={() => handleHeaderClick('length')}>
-                    Length {getSortIcon('length')}
+                  <th className="sortable" onClick={() => handleHeaderClick('length')}
+                    style={{ cursor: 'pointer' }}>
+                    LENGTH {getSortIcon('length')}
                   </th>
-                  <th>HLA Class</th>
-                  <th className="sortable" onClick={() => handleHeaderClick('probability')}>
-                    Probability {getSortIcon('probability')}
+                  <th>HLA CLASS</th>
+                  <th className="sortable" onClick={() => handleHeaderClick('probability')}
+                    style={{ cursor: 'pointer' }}>
+                    PROBABILITY {getSortIcon('probability')}
                   </th>
-                  <th className="sortable" onClick={() => handleHeaderClick('is_epitope')}>
-                    Result {getSortIcon('is_epitope')}
+                  <th className="sortable" onClick={() => handleHeaderClick('is_epitope')}
+                    style={{ cursor: 'pointer' }}>
+                    RESULT {getSortIcon('is_epitope')}
                   </th>
                 </tr>
               </thead>
@@ -340,18 +492,22 @@ const SlidingResults = ({ results }) => {
                   filteredResults.map((result, index) => (
                     <tr key={index}>
                       <td>{result.position}</td>
-                      <td>{result.peptide}</td>
+                      <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
                       <td>{result.length}</td>
                       <td>{result.class}</td>
                       <td>{result.probability.toFixed(3)}</td>
-                      <td className={result.is_epitope ? 'result-positive' : 'result-negative'}>
+                      <td className={result.is_epitope ? 'result-positive' : 'result-negative'}
+                        style={{ 
+                          color: result.is_epitope ? '#33523E' : '#3A424E',
+                          fontWeight: 500
+                        }}>
                         {result.is_epitope ? 'Potential Epitope' : 'Non-Epitope'}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center">
+                    <td colSpan={6} className="text-center py-4" style={{ color: '#7F8A99' }}>
                       No epitopes found with the current filter settings.
                     </td>
                   </tr>
@@ -359,8 +515,8 @@ const SlidingResults = ({ results }) => {
               </tbody>
             </Table>
           </div>
-        </Card.Body>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
