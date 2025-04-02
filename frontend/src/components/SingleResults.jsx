@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Card, Row, Col, Table, Alert } from 'react-bootstrap'
 import { Chart, DoughnutController, ArcElement, Tooltip, Legend, Title } from 'chart.js'
+import { Button, Loader } from '@mantine/core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCube, faDownload } from '@fortawesome/free-solid-svg-icons'
+import * as $3Dmol from '3dmol'
+import axios from 'axios'
 
 // Register Chart.js components
 Chart.register(DoughnutController, ArcElement, Tooltip, Legend, Title)
@@ -9,13 +14,33 @@ const SingleResults = ({ results }) => {
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [structureModalOpen, setStructureModalOpen] = useState(false)
+  
+  // Refs and state for 3D viewer
+  const viewerRef = useRef(null)
+  const containerRef = useRef(null)
+  const [pdbStructure, setPdbStructure] = useState(null)
+  const [loading3D, setLoading3D] = useState(false)
+  const [error3D, setError3D] = useState(null)
 
   useEffect(() => {
     createChart()
     
+    // Load the structure when component mounts
+    if (results && results.peptide) {
+      loadStructure(results.peptide)
+    }
+    
     return () => {
       if (chartInstance.current) {
         chartInstance.current.destroy()
+      }
+      if (viewerRef.current) {
+        try {
+          viewerRef.current = null
+        } catch (e) {
+          console.error("Error cleaning up viewer:", e)
+        }
       }
     }
   }, [results])
@@ -108,6 +133,94 @@ const SingleResults = ({ results }) => {
         }
       }
     })
+  }
+
+  const loadStructure = async (sequence) => {
+    setLoading3D(true)
+    setError3D(null)
+    
+    try {
+      const response = await axios.post('/api/predict-structure', { sequence })
+      setPdbStructure(response.data.pdb_structure)
+      
+      // Increase timeout to ensure container is properly rendered
+      setTimeout(() => {
+        initViewer(response.data.pdb_structure)
+        setLoading3D(false)
+      }, 500) // Increased from 100ms to 500ms
+    } catch (error) {
+      console.error("Error loading structure:", error)
+      setError3D("Failed to load protein structure")
+      setLoading3D(false)
+    }
+  }
+
+  const initViewer = (structure) => {
+    if (!containerRef.current || !structure) return
+    
+    // Make sure the container has dimensions
+    const containerElement = $(containerRef.current)
+    if (containerElement.width() === 0 || containerElement.height() === 0) {
+      console.error("Container has zero dimensions, cannot initialize viewer")
+      setError3D("Error initializing 3D viewer: container has zero size")
+      return
+    }
+    
+    // Clear any previous viewer
+    if (viewerRef.current) {
+      try {
+        $(containerRef.current).empty()
+      } catch (e) {
+        console.error("Error clearing container:", e)
+      }
+    }
+
+    // Create the viewer
+    try {
+      viewerRef.current = $3Dmol.createViewer(
+        containerElement,
+        {
+          defaultcolors: $3Dmol.rasmolElementColors,
+          backgroundColor: 'white',
+        }
+      )
+
+      // Add the PDB data
+      viewerRef.current.addModel(structure, "pdb")
+      
+      // Style the protein
+      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
+      
+      // Add surface representation
+      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: 0.6,
+        color: 'white'
+      })
+      
+      // Zoom to fit the protein
+      viewerRef.current.zoomTo()
+      
+      // Render the scene
+      viewerRef.current.render()
+    } catch (e) {
+      console.error("Error initializing 3Dmol viewer:", e)
+      setError3D("Error initializing 3D viewer")
+    }
+  }
+
+  const handleDownload = () => {
+    if (!pdbStructure) return
+
+    const blob = new Blob([pdbStructure], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = url
+    a.download = 'protein_structure.pdb'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
   }
 
   if (!results || !results.results || !results.results.length) {
@@ -301,49 +414,130 @@ const SingleResults = ({ results }) => {
             )}
           </div>
         </div>
+      </div>
 
-        <div className="content-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
-          <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
-            <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
-              <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-                Prediction Visualization
-              </div>
-              <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
-                <canvas ref={chartRef}></canvas>
+      {/* 3D Structure Visualization */}
+      <div className="content-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
+            3D STRUCTURE VISUALIZATION
+          </div>
+          
+          {pdbStructure && (
+            <Button
+              size="xs"
+              variant="subtle"
+              leftIcon={<FontAwesomeIcon icon={faDownload} />}
+              onClick={handleDownload}
+              styles={{
+                root: {
+                  color: '#6E9F7F',
+                  '&:hover': {
+                    backgroundColor: 'rgba(94, 159, 127, 0.1)',
+                  }
+                }
+              }}
+            >
+              Download PDB
+            </Button>
+          )}
+        </div>
+        
+        <div style={{ backgroundColor: 'white', borderRadius: '0.375rem', padding: '0', border: '1px solid #DCE8E0', position: 'relative' }}>
+          <div 
+            ref={containerRef} 
+            style={{ 
+              width: '100%', 
+              height: '400px',
+              borderRadius: '0.375rem'
+            }}
+          ></div>
+          
+          {loading3D && (
+            <div style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '0.375rem'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <Loader color="#6E9F7F" size="md" />
+                <div style={{ marginTop: '1rem', color: '#33523E' }}>
+                  Predicting structure...
+                </div>
               </div>
             </div>
-            <div className="col-md-6" style={{ padding: '0 12px' }}>
-              <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-                Detailed Result
+          )}
+          
+          {error3D && (
+            <div style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: '0.375rem'
+            }}>
+              <div style={{ textAlign: 'center', color: '#d63031', maxWidth: '80%' }}>
+                <div style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Error</div>
+                <div>{error3D}</div>
               </div>
-              <div className="table-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', border: '1px solid #DCE8E0', overflow: 'auto' }}>
-                <Table striped hover className="results-table mb-0">
-                  <thead>
-                    <tr>
-                      <th>PEPTIDE</th>
-                      <th>HLA CLASS</th>
-                      <th>PROBABILITY</th>
-                      <th>RESULT</th>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="content-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+        <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
+          <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
+            <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+              Prediction Visualization
+            </div>
+            <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+              <canvas ref={chartRef}></canvas>
+            </div>
+          </div>
+          <div className="col-md-6" style={{ padding: '0 12px' }}>
+            <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+              Detailed Result
+            </div>
+            <div className="table-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', border: '1px solid #DCE8E0', overflow: 'auto' }}>
+              <Table striped hover className="results-table mb-0">
+                <thead>
+                  <tr>
+                    <th>PEPTIDE</th>
+                    <th>HLA CLASS</th>
+                    <th>PROBABILITY</th>
+                    <th>RESULT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.results.map((result, index) => (
+                    <tr key={index}>
+                      <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
+                      <td>{result.hla_class}</td>
+                      <td>{result.probability.toFixed(3)}</td>
+                      <td className={result.is_epitope ? 'result-positive' : 'result-negative'}
+                        style={{ 
+                          color: result.is_epitope ? '#33523E' : '#3A424E',
+                          fontWeight: 500
+                        }}>
+                        {result.is_epitope ? 'Epitope' : 'Non-Epitope'}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {results.results.map((result, index) => (
-                      <tr key={index}>
-                        <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
-                        <td>{result.hla_class}</td>
-                        <td>{result.probability.toFixed(3)}</td>
-                        <td className={result.is_epitope ? 'result-positive' : 'result-negative'}
-                          style={{ 
-                            color: result.is_epitope ? '#33523E' : '#3A424E',
-                            fontWeight: 500
-                          }}>
-                          {result.is_epitope ? 'Epitope' : 'Non-Epitope'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
+                  ))}
+                </tbody>
+              </Table>
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import traceback
 import time
+import requests
 from flask import Flask, request, jsonify, send_from_directory
 from transformers import AutoTokenizer, AutoModel
 from werkzeug.utils import secure_filename
@@ -282,6 +283,63 @@ def predict():
             print(f"Error in prediction: {str(e)}")
             traceback.print_exc()
             return jsonify({"error": str(e)}), 500
+
+@app.route('/api/predict-structure', methods=['POST'])
+def predict_structure():
+    """
+    Endpoint to predict 3D structure of a protein sequence using ESMFold API
+    """
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            sequence = data.get('sequence', '').strip().upper()
+            
+            # Validate sequence
+            if not sequence:
+                return jsonify({"error": "No protein sequence provided"}), 400
+            
+            if not is_valid_peptide(sequence):
+                return jsonify({"error": "Protein sequence contains invalid amino acid letters"}), 400
+            
+            # Generate cache key
+            cache_key = f"structure_{sequence}"
+            
+            # Check if result is in cache
+            if cache_key in prediction_cache:
+                print(f"Cache hit for {cache_key}")
+                return jsonify(prediction_cache[cache_key])
+            
+            # Call ESMFold API
+            try:
+                api_url = "https://api.esmatlas.com/foldSequence/v1/pdb/"
+                response = requests.post(api_url, data=sequence)
+                
+                if response.status_code != 200:
+                    return jsonify({"error": f"ESMFold API error: {response.text}"}), 500
+                
+                # Get the PDB structure
+                pdb_structure = response.text
+                
+                # Create response
+                result = {
+                    "sequence": sequence,
+                    "pdb_structure": pdb_structure
+                }
+                
+                # Cache the result
+                prediction_cache[cache_key] = result
+                # Remove oldest entry if cache is full
+                if len(prediction_cache) > MAX_CACHE_SIZE:
+                    oldest_key = next(iter(prediction_cache))
+                    del prediction_cache[oldest_key]
+                
+                return jsonify(result)
+                
+            except Exception as e:
+                return jsonify({"error": f"Error calling ESMFold API: {str(e)}"}), 500
+                
+        except Exception as e:
+            return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 # Serve static frontend files in production
 @app.route('/', defaults={'path': ''})

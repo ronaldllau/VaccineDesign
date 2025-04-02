@@ -1,10 +1,26 @@
 import { useState } from 'react'
-import { AppShell, Container, Group, Title, Text, Alert, Button, Paper } from '@mantine/core'
+import { 
+  AppShell, 
+  Container, 
+  Group, 
+  Title, 
+  Text, 
+  Alert, 
+  Button, 
+  Paper,
+  Tabs
+} from '@mantine/core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFlask, faCircleInfo, faArrowLeft } from '@fortawesome/free-solid-svg-icons'
+import { 
+  faFlask, 
+  faCircleInfo, 
+  faArrowLeft, 
+  faCube 
+} from '@fortawesome/free-solid-svg-icons'
 import PredictorForm from './components/PredictorForm'
 import SingleResults from './components/SingleResults'
 import SlidingResults from './components/SlidingResults'
+import StructurePredictionPage from './components/StructurePredictionPage'
 import Footer from './components/Footer'
 import AboutSection from './components/AboutSection'
 
@@ -55,6 +71,7 @@ function App() {
   const [singleResults, setSingleResults] = useState(null)
   const [slidingResults, setSlidingResults] = useState(null)
   const [showResults, setShowResults] = useState(false)
+  const [activeTab, setActiveTab] = useState('epitope') // 'epitope' or 'structure'
 
   // Handle prediction complete from the PredictorForm
   const handlePredictionComplete = (data) => {
@@ -92,51 +109,87 @@ function App() {
           boxShadow: '0 2px 10px rgba(0, 0, 0, 0.03)'
         }}>
           <Container size="lg">
-            <Group style={{ height: '100%', alignItems: 'center' }} position="left" px="md">
-              <div style={{ 
-                backgroundColor: 'rgba(94, 159, 127, 0.1)', 
-                padding: '8px', 
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.3s ease'
-              }} className="animate-glow">
-                <FontAwesomeIcon icon={faFlask} size="lg" style={{ color: '#5E9F7F' }} />
-              </div>
-              <Title order={1} style={{ 
-                fontSize: '1.5rem', 
-                letterSpacing: '0.05em', 
-                textTransform: 'uppercase',
-                fontWeight: 500,
-                color: '#33523E',
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                position: 'relative',
-                paddingBottom: '2px'
-              }}>
-                <span style={{ 
+            <Group style={{ height: '100%', alignItems: 'center' }} position="apart" px="md">
+              <Group>
+                <div style={{ 
+                  backgroundColor: 'rgba(94, 159, 127, 0.1)', 
+                  padding: '8px', 
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease'
+                }} className="animate-glow">
+                  <FontAwesomeIcon icon={faFlask} size="lg" style={{ color: '#5E9F7F' }} />
+                </div>
+                <Title order={1} style={{ 
+                  fontSize: '1.5rem', 
+                  letterSpacing: '0.05em', 
+                  textTransform: 'uppercase',
+                  fontWeight: 500,
+                  color: '#33523E',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
                   position: 'relative',
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    bottom: '-2px',
-                    left: '0',
-                    width: '100%',
-                    height: '2px',
-                    backgroundColor: '#5E9F7F',
-                    transform: 'scaleX(0)',
-                    transformOrigin: 'left',
-                    transition: 'transform 0.3s ease'
-                  },
-                  '&:hover::after': {
-                    transform: 'scaleX(1)'
-                  }
+                  paddingBottom: '2px'
                 }}>
-                  TRANSHLA EPITOPE PREDICTOR
-                </span>
-              </Title>
+                  <span style={{ 
+                    position: 'relative',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      bottom: '-2px',
+                      left: '0',
+                      width: '100%',
+                      height: '2px',
+                      backgroundColor: '#5E9F7F',
+                      transform: 'scaleX(0)',
+                      transformOrigin: 'left',
+                      transition: 'transform 0.3s ease'
+                    },
+                    '&:hover::after': {
+                      transform: 'scaleX(1)'
+                    }
+                  }}>
+                    VACCINE DESIGN TOOLKIT
+                  </span>
+                </Title>
+              </Group>
+              
+              <Tabs 
+                value={activeTab} 
+                onTabChange={setActiveTab}
+                styles={{
+                  tabsList: {
+                    border: 'none',
+                  },
+                  tab: {
+                    fontWeight: 500,
+                    letterSpacing: '0.05em',
+                    color: '#33523E',
+                    '&[data-active]': {
+                      color: '#5E9F7F',
+                      borderColor: '#5E9F7F',
+                    },
+                  },
+                }}
+              >
+                <Tabs.List>
+                  <Tabs.Tab 
+                    value="epitope" 
+                    icon={<FontAwesomeIcon icon={faFlask} style={{ marginRight: '0.5rem' }} />}
+                  >
+                    EPITOPE PREDICTION
+                  </Tabs.Tab>
+                  <Tabs.Tab 
+                    value="structure" 
+                    icon={<FontAwesomeIcon icon={faCube} style={{ marginRight: '0.5rem' }} />}
+                  >
+                    STRUCTURE PREDICTION
+                  </Tabs.Tab>
+                </Tabs.List>
+              </Tabs>
             </Group>
           </Container>
         </header>
@@ -166,72 +219,76 @@ function App() {
         }
       }}
     >
-      <Container size="lg" py="xl" className="animate-entrance">
-        {!showResults ? (
-          /* Show the predictor form if not in results view */
-          <>
-            <PredictorForm 
-              onPredictionComplete={handlePredictionComplete} 
-              isLoading={loading}
-              setIsLoading={setLoading}
-            />
+      {activeTab === 'epitope' ? (
+        <Container size="lg" py="xl" className="animate-entrance">
+          {!showResults ? (
+            /* Show the predictor form if not in results view */
+            <>
+              <PredictorForm 
+                onPredictionComplete={handlePredictionComplete} 
+                isLoading={loading}
+                setIsLoading={setLoading}
+              />
 
-            {error && (
-              <Alert 
-                color="orange" 
-                title="ERROR" 
-                mt="md"
-                className="animate-entrance"
-                styles={{
-                  root: {
-                    border: '1px solid #F0D8C0',
-                    boxShadow: '0 2px 8px rgba(227, 137, 86, 0.1)'
-                  }
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <FontAwesomeIcon icon={faCircleInfo} style={{ 
-                    marginRight: '0.5rem', 
-                    marginTop: '0.2rem',
-                    color: '#E38956' 
-                  }} />
-                  <div>{error}</div>
-                </div>
-              </Alert>
-            )}
-          </>
-        ) : (
-          /* Show the results view */
-          <div className="animate-entrance">
-            <StyledPaper>
-              <StyledTitle>PREDICTION RESULTS</StyledTitle>
-              <Button 
-                onClick={handleBackToForm}
-                variant="subtle"
-                leftIcon={<FontAwesomeIcon icon={faArrowLeft} />}
-                style={{ 
-                  color: '#5E9F7F', 
-                  marginBottom: '1.5rem', 
-                  fontWeight: 500,
-                  padding: '0.5rem 1rem',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(94, 159, 127, 0.1)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(94, 159, 127, 0.2)',
-                  }
-                }}
-              >
-                Back to Input Form
-              </Button>
+              {error && (
+                <Alert 
+                  color="orange" 
+                  title="ERROR" 
+                  mt="md"
+                  className="animate-entrance"
+                  styles={{
+                    root: {
+                      border: '1px solid #F0D8C0',
+                      boxShadow: '0 2px 8px rgba(227, 137, 86, 0.1)'
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <FontAwesomeIcon icon={faCircleInfo} style={{ 
+                      marginRight: '0.5rem', 
+                      marginTop: '0.2rem',
+                      color: '#E38956' 
+                    }} />
+                    <div>{error}</div>
+                  </div>
+                </Alert>
+              )}
+            </>
+          ) : (
+            /* Show the results view */
+            <div className="animate-entrance">
+              <StyledPaper>
+                <StyledTitle>PREDICTION RESULTS</StyledTitle>
+                <Button 
+                  onClick={handleBackToForm}
+                  variant="subtle"
+                  leftIcon={<FontAwesomeIcon icon={faArrowLeft} />}
+                  style={{ 
+                    color: '#5E9F7F', 
+                    marginBottom: '1.5rem', 
+                    fontWeight: 500,
+                    padding: '0.5rem 1rem',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(94, 159, 127, 0.1)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(94, 159, 127, 0.2)',
+                    }
+                  }}
+                >
+                  Back to Input Form
+                </Button>
 
-              {singleResults && <SingleResults results={singleResults} />}
-              {slidingResults && <SlidingResults results={slidingResults} />}
-            </StyledPaper>
-          </div>
-        )}
-        
-        <AboutSection />
-      </Container>
+                {singleResults && <SingleResults results={singleResults} />}
+                {slidingResults && <SlidingResults results={slidingResults} />}
+              </StyledPaper>
+            </div>
+          )}
+          
+          <AboutSection />
+        </Container>
+      ) : (
+        <StructurePredictionPage />
+      )}
     </AppShell>
   )
 }
