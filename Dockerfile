@@ -56,6 +56,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Node.js dependencies
 RUN npm install
 
+# Create directory for model cache
+RUN mkdir -p /root/.cache/huggingface
+
 # Expose port
 EXPOSE 5000
 

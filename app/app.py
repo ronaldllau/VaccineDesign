@@ -33,6 +33,16 @@ tokenizer = None
 transHLA_I_model = None
 transHLA_II_model = None
 
+def pad_sequences(sequences, max_length):
+    """Pad sequences to a fixed length."""
+    padded_sequences = []
+    for seq in sequences:
+        padding_length = max_length - len(seq)
+        if padding_length > 0:
+            seq.extend([1] * padding_length)
+        padded_sequences.append(seq)
+    return padded_sequences
+
 def load_models():
     """Attempt to load the TransHLA models."""
     global tokenizer, transHLA_I_model, transHLA_II_model
@@ -107,59 +117,45 @@ def generate_peptides(sequence, hla_class, fixed_window_size=None):
     
     return peptides
 
-def pad_sequences(batch, max_length):
-    """Pad sequences to the same length."""
-    padded_batch = []
-    for seq in batch:
-        padded_seq = seq + [1] * (max_length - len(seq))  # 1 is the padding token id
-        padded_batch.append(padded_seq)
-    return padded_batch
-
 def run_prediction(peptides, hla_class):
     """Run prediction for each peptide and return results."""
     results = []
     
     # Choose the appropriate model based on HLA class
-    if hla_class == "I":
-        model = transHLA_I_model
-    else:  # Class II
-        model = transHLA_II_model
+    model = transHLA_I_model if hla_class == "I" else transHLA_II_model
     
-    # Process each peptide
-    with torch.no_grad():
-        for peptide_data in peptides:
-            peptide = peptide_data["peptide"]
-            
-            # Tokenize the peptide
-            batch_encoding = tokenizer(peptide)['input_ids']
-            
-            # Convert to tensor and move to device
-            if hla_class == "I":
-                max_length = 16  # Max length for class I
-            else:
-                max_length = 23  # Max length for class II
-                
-            padded_encoding = pad_sequences([batch_encoding], max_length)[0]
-            input_tensor = torch.tensor([padded_encoding]).to(device)
-            
-            # Run the model
+    # Process peptides in batches for better performance
+    batch_size = 32
+    for i in range(0, len(peptides), batch_size):
+        batch_peptides = peptides[i:i + batch_size]
+        
+        # Tokenize the batch
+        batch_encoding = tokenizer([p["peptide"] for p in batch_peptides])['input_ids']
+        
+        # Pad sequences to appropriate length
+        max_length = 16 if hla_class == "I" else 23
+        padded_encoding = pad_sequences(batch_encoding, max_length)
+        
+        # Convert to tensor and move to device
+        input_tensor = torch.tensor(padded_encoding).to(device)
+        
+        # Run the model
+        with torch.no_grad():
             outputs, _ = model(input_tensor)
             
-            # Get the prediction probability
-            probability = outputs[0][1].item()
-            
-            # Determine if it's an epitope based on a threshold
-            is_epitope = probability > 0.5
-            
-            # Add results
-            results.append({
-                "peptide": peptide,
-                "position": peptide_data["position"],
-                "length": peptide_data["length"],
-                "class": peptide_data["class"],
-                "probability": probability,
-                "is_epitope": is_epitope
-            })
+            # Process each prediction in the batch
+            for j, peptide_data in enumerate(batch_peptides):
+                probability = outputs[j][1].item()
+                is_epitope = probability > 0.5
+                
+                results.append({
+                    "peptide": peptide_data["peptide"],
+                    "position": peptide_data["position"],
+                    "length": peptide_data["length"],
+                    "class": peptide_data["class"],
+                    "probability": probability,
+                    "is_epitope": is_epitope
+                })
     
     return results
 
