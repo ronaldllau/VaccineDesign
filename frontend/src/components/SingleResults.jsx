@@ -140,7 +140,7 @@ const SingleResults = ({ results }) => {
     setError3D(null)
     
     try {
-      const response = await axios.post('/api/predict-structure', { sequence })
+      const response = await axios.post('http://localhost:8080/api/predict-structure', { sequence })
       setPdbStructure(response.data.pdb_structure)
       
       // Increase timeout to ensure container is properly rendered

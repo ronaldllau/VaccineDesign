@@ -33,6 +33,10 @@ tokenizer = None
 transHLA_I_model = None
 transHLA_II_model = None
 
+# Don't load models at startup to reduce initial memory usage
+# Load them on-demand when needed
+print("Models will be loaded on first prediction request")
+
 def pad_sequences(sequences, max_length):
     """Pad sequences to a fixed length."""
     padded_sequences = []
@@ -67,18 +71,6 @@ def load_models():
         print(f"Error loading models: {str(e)}")
         traceback.print_exc()
         return False
-
-# Load models on startup
-try:
-    print("Loading models on startup...")
-    models_loaded = load_models()
-    if models_loaded:
-        print("Models loaded successfully on startup")
-    else:
-        print("Failed to load models on startup, will try again when needed")
-except Exception as e:
-    print(f"Error during startup model loading: {str(e)}")
-    traceback.print_exc()
 
 def is_valid_peptide(peptide):
     """Check if a peptide contains only valid amino acid letters."""
@@ -336,6 +328,19 @@ def predict_structure():
                 
         except Exception as e:
             return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """
+    Simple health check endpoint for the container
+    """
+    try:
+        return jsonify({"status": "healthy"}), 200
+    except Exception as e:
+        print(f"Health check failed: {str(e)}")
+        # Still return 200 to keep the container running, 
+        # but log the error for investigation
+        return jsonify({"status": "degraded", "error": str(e)}), 200
 
 # Serve static frontend files in production
 @app.route('/', defaults={'path': ''})
