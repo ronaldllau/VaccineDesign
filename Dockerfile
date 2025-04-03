@@ -38,7 +38,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app/ app/
-COPY start.js .
 COPY package.json .
 COPY package-lock.json .
 COPY run.py .

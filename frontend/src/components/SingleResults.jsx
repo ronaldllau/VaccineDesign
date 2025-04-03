@@ -14,6 +14,7 @@ const SingleResults = ({ results }) => {
   const chartRef = useRef(null)
   const chartInstance = useRef(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [hoveredResidue, setHoveredResidue] = useState(null)
   const [structureModalOpen, setStructureModalOpen] = useState(false)
   
   // Refs and state for 3D viewer
@@ -44,6 +45,15 @@ const SingleResults = ({ results }) => {
       }
     }
   }, [results])
+
+  // Effect to update highlighting in 3D viewer when hovering over a residue
+  useEffect(() => {
+    if (viewerRef.current && hoveredResidue !== null) {
+      highlightResidue(hoveredResidue)
+    } else if (viewerRef.current && hoveredResidue === null) {
+      resetHighlighting()
+    }
+  }, [hoveredResidue])
 
   const createChart = () => {
     if (!chartRef.current || !results) return
@@ -140,7 +150,7 @@ const SingleResults = ({ results }) => {
     setError3D(null)
     
     try {
-      const response = await axios.post('http://localhost:8080/api/predict-structure', { sequence })
+      const response = await axios.post('/api/predict-structure', { sequence })
       setPdbStructure(response.data.pdb_structure)
       
       // Increase timeout to ensure container is properly rendered
@@ -205,6 +215,72 @@ const SingleResults = ({ results }) => {
     } catch (e) {
       console.error("Error initializing 3Dmol viewer:", e)
       setError3D("Error initializing 3D viewer")
+    }
+  }
+
+  // Function to highlight a specific residue in the 3D viewer
+  const highlightResidue = (resIndex) => {
+    if (!viewerRef.current) return
+    
+    try {
+      // Reset previous highlighting
+      resetHighlighting()
+      
+      // Add highlighting for the hovered residue
+      // In PDB files, residue indices typically start from 1
+      const displayIndex = resIndex + 1
+      
+      // Highlight the residue with a brighter color and thicker cartoon
+      viewerRef.current.setStyle({resi: displayIndex}, {
+        cartoon: { color: '#FF9500', thickness: 0.8 },
+        stick: { radius: 0.2, color: '#FF9500' }
+      })
+      
+      // Add a transparent sphere around the residue
+      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: 0.4,
+        color: '#FF9500',
+        singleSurface: true
+      }, {resi: displayIndex})
+      
+      // Add a border outline around the residue using a slightly larger SAS surface
+      // with a different color and higher opacity
+      viewerRef.current.addSurface($3Dmol.SurfaceType.SAS, {
+        opacity: 0.8,
+        color: '#333333',
+        singleSurface: true,
+        wireframe: true,
+        linewidth: 2.0
+      }, {resi: displayIndex})
+      
+      // Render the changes
+      viewerRef.current.render()
+    } catch (e) {
+      console.error("Error highlighting residue:", e)
+    }
+  }
+
+  // Function to reset all highlighting
+  const resetHighlighting = () => {
+    if (!viewerRef.current) return
+    
+    try {
+      // Remove all surfaces first
+      viewerRef.current.removeAllSurfaces()
+      
+      // Reset to default style
+      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
+      
+      // Add back the overall surface
+      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: 0.6,
+        color: 'white'
+      })
+      
+      // Render the changes
+      viewerRef.current.render()
+    } catch (e) {
+      console.error("Error resetting highlighting:", e)
     }
   }
 
@@ -341,6 +417,8 @@ const SingleResults = ({ results }) => {
                       width: '2.5rem'
                     }}
                     title={`${aaProps.name} (${aaProps.abbreviation})\nProperty: ${aaProps.property}\nPosition: ${index+1}`}
+                    onMouseEnter={() => setHoveredResidue(index)}
+                    onMouseLeave={() => setHoveredResidue(null)}
                   >
                     <div style={{
                       backgroundColor: getColor(),
@@ -352,14 +430,15 @@ const SingleResults = ({ results }) => {
                       borderRadius: '0.3rem',
                       fontFamily: 'monospace',
                       fontSize: '1.4rem',
-                      fontWeight: isHovered && isEpitope ? 'bold' : '600',
-                      color: isHovered ? '#000000' : '#666666',
+                      fontWeight: (isHovered || hoveredResidue === index) && isEpitope ? 'bold' : '600',
+                      color: isHovered || hoveredResidue === index ? '#000000' : '#666666',
                       border: isEpitope ? 
-                        (isHovered ? '3px solid rgba(94, 159, 127, 0.9)' : '1px solid rgba(94, 159, 127, 0.3)') : 
+                        (isHovered || hoveredResidue === index ? '3px solid rgba(94, 159, 127, 0.9)' : '1px solid rgba(94, 159, 127, 0.3)') : 
                         '1px solid rgba(185, 194, 204, 0.3)',
-                      boxShadow: isHovered && isEpitope ? '0 0 4px rgba(0, 0, 0, 0.2)' : 'none',
-                      transform: isHovered && isEpitope ? 'scale(1.08)' : 'scale(1)',
-                      transition: 'all 0.15s ease-in-out'
+                      boxShadow: (isHovered || hoveredResidue === index) && isEpitope ? '0 0 4px rgba(0, 0, 0, 0.2)' : 'none',
+                      transform: (isHovered || hoveredResidue === index) && isEpitope ? 'scale(1.08)' : 'scale(1)',
+                      transition: 'all 0.15s ease-in-out',
+                      cursor: 'pointer'
                     }}>
                       {char}
                     </div>

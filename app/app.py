@@ -8,6 +8,7 @@ import traceback
 import time
 import requests
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 from transformers import AutoTokenizer, AutoModel
 from werkzeug.utils import secure_filename
 
@@ -21,6 +22,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 app = Flask(__name__)
+# Enable CORS for all routes when running in development
+CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 
 # Prediction cache

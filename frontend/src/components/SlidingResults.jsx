@@ -28,10 +28,11 @@ const SlidingResults = ({ results }) => {
   const [sortBy, setSortBy] = useState('position')
   const [sortDirection, setSortDirection] = useState('asc')
   const [filteredResults, setFilteredResults] = useState([])
-  const [topNFilter, setTopNFilter] = useState(3) // Default to top 3
+  const [topNFilter, setTopNFilter] = useState(5)
   const [highlightedPositions, setHighlightedPositions] = useState([])
   const [minMaxProb, setMinMaxProb] = useState({ min: 0, max: 1 })
   const [hoveredEpitope, setHoveredEpitope] = useState(null)
+  const [hoveredResidue, setHoveredResidue] = useState(null)
   
   const [selectedPeptide, setSelectedPeptide] = useState(null);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
@@ -146,6 +147,14 @@ const SlidingResults = ({ results }) => {
       }
     }
   }, [results])
+
+  useEffect(() => {
+    if (viewerRef.current && hoveredResidue !== null) {
+      highlightResidue(hoveredResidue)
+    } else if (viewerRef.current && hoveredResidue === null) {
+      resetHighlighting()
+    }
+  }, [hoveredResidue])
 
   const createDensityChart = () => {
     if (!densityChartRef.current || !results) return
@@ -418,6 +427,58 @@ const SlidingResults = ({ results }) => {
     }
   }
 
+  const highlightResidue = (resIndex) => {
+    if (!viewerRef.current) return
+    
+    try {
+      resetHighlighting()
+      
+      const displayIndex = resIndex + 1
+      
+      viewerRef.current.setStyle({resi: displayIndex}, {
+        cartoon: { color: '#FF9500', thickness: 0.8 },
+        stick: { radius: 0.2, color: '#FF9500' }
+      })
+      
+      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: 0.4,
+        color: '#FF9500',
+        singleSurface: true
+      }, {resi: displayIndex})
+      
+      viewerRef.current.addSurface($3Dmol.SurfaceType.SAS, {
+        opacity: 0.8,
+        color: '#333333',
+        singleSurface: true,
+        wireframe: true,
+        linewidth: 2.0
+      }, {resi: displayIndex})
+      
+      viewerRef.current.render()
+    } catch (e) {
+      console.error("Error highlighting residue:", e)
+    }
+  }
+
+  const resetHighlighting = () => {
+    if (!viewerRef.current) return
+    
+    try {
+      viewerRef.current.removeAllSurfaces()
+      
+      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
+      
+      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity: 0.6,
+        color: 'white'
+      })
+      
+      viewerRef.current.render()
+    } catch (e) {
+      console.error("Error resetting highlighting:", e)
+    }
+  }
+
   const handleDownload = () => {
     if (!pdbStructure) return
 
@@ -552,31 +613,34 @@ const SlidingResults = ({ results }) => {
               };
               
               return (
-                <div 
-                  key={index} 
-                  style={{ 
-                    backgroundColor: getColor(highestProbEpitope?.probability),
-                    width: '1.2em',
-                    height: '1.5em',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    margin: '0.05rem',
-                    borderRadius: '0.2rem',
-                    cursor: highestProbEpitope ? 'pointer' : 'default',
+                <div
+                  key={index}
+                  style={{
+                    position: 'relative',
+                    display: 'inline-block',
+                    width: '1.6em',
+                    height: '1.6em',
+                    lineHeight: '1.6em',
+                    textAlign: 'center',
+                    color: isHighlighted || isPartOfHoveredEpitope ? '#000' : '#666',
+                    backgroundColor: isPartOfHoveredEpitope ? 
+                      'rgba(94, 159, 127, 0.35)' : 
+                      (highestProbEpitope && isHighlighted ? getColor(highestProbEpitope.probability) : 'transparent'),
                     fontWeight: isPartOfHoveredEpitope ? 'bold' : 'normal',
-                    color: isPartOfHoveredEpitope ? '#000000' : '#666666',
-                    border: isPartOfHoveredEpitope ? '2px solid rgba(94, 159, 127, 0.9)' : 'none',
-                    boxShadow: isPartOfHoveredEpitope ? '0 0 3px rgba(0, 0, 0, 0.2)' : 'none',
-                    transform: isPartOfHoveredEpitope ? 'scale(1.05)' : 'scale(1)',
-                    transition: 'all 0.1s ease-in-out'
+                    margin: '1px',
+                    borderRadius: '2px',
+                    border: isPartOfHoveredEpitope ? 
+                      '1px solid rgba(94, 159, 127, 0.8)' : 
+                      (highestProbEpitope && isHighlighted ? '1px solid rgba(94, 159, 127, 0.3)' : '1px solid transparent'),
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease-in-out'
                   }}
+                  onMouseEnter={() => setHoveredResidue(index)}
+                  onMouseLeave={() => setHoveredResidue(null)}
                   title={highestProbEpitope ? 
-                    `Position: ${index+1}\nEpitope: ${highestProbEpitope.peptide}\nProbability: ${highestProbEpitope.probability.toFixed(3)}` : 
-                    `Position: ${index+1}`
-                  }
-                  onMouseEnter={() => highestProbEpitope && setHoveredEpitope(highestProbEpitope)}
-                  onMouseLeave={() => setHoveredEpitope(null)}
+                    `Position ${index+1}: ${char} 
+Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` : 
+                    `Position ${index+1}: ${char}`}
                 >
                   {char}
                 </div>
@@ -815,7 +879,21 @@ const SlidingResults = ({ results }) => {
             <tbody>
               {filteredResults.length > 0 ? (
                 filteredResults.map((result, index) => (
-                  <tr key={index}>
+                  <tr 
+                    key={index}
+                    style={{
+                      backgroundColor: hoveredEpitope === result ? 'rgba(94, 159, 127, 0.1)' : 'white',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={() => {
+                      setHoveredEpitope(result)
+                      setHoveredResidue(result.position - 1)
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredEpitope(null)
+                      setHoveredResidue(null)
+                    }}
+                  >
                     <td>{result.position}</td>
                     <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
                     <td>{result.length}</td>
