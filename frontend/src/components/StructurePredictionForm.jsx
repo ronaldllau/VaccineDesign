@@ -79,7 +79,8 @@ const StyledButton = ({ children, ...props }) => (
   </Button>
 );
 
-const EXAMPLE_SEQUENCE = "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG";
+// Extended version of our epitope sequences as an example for protein structure prediction
+const EXAMPLE_SEQUENCE = "SGELKFEKRTSSAQFDEYMKELGVGIALMLRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNAALGLWLSV";
 
 const StructurePredictionForm = ({ onPredictionComplete }) => {
   const [sequence, setSequence] = useState('')

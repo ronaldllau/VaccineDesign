@@ -59,6 +59,17 @@ RUN mkdir -p /app/.cache/torch/hub/checkpoints && \
     chmod -R 755 /app/app/static && \
     chmod -R 755 /app/.cache
 
+# Pre-download models during build time to avoid downloading at runtime
+RUN echo "Pre-downloading TransHLA models during build..." && \
+    python -c "from transformers import AutoTokenizer, AutoModel; \
+    print('Downloading tokenizer...'); \
+    tokenizer = AutoTokenizer.from_pretrained('facebook/esm2_t33_650M_UR50D'); \
+    print('Downloading TransHLA_I model...'); \
+    model_i = AutoModel.from_pretrained('SkywalkerLu/TransHLA_I', trust_remote_code=True); \
+    print('Downloading TransHLA_II model...'); \
+    model_ii = AutoModel.from_pretrained('SkywalkerLu/TransHLA_II', trust_remote_code=True); \
+    print('All models downloaded successfully')"
+
 # Create non-root user
 RUN useradd -m -r -s /bin/bash appuser && \
     chown -R appuser:appuser /app

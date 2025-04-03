@@ -314,12 +314,12 @@ const PredictorForm = ({ onPredictionComplete, isLoading, setIsLoading }) => {
   const loadSample = () => {
     const sampleSequences = {
       'I': {
-        single: 'YANSVFNIC',
-        sliding: 'AYANSVFNICQAVTA'
+        single: 'AALGLWLSV',
+        sliding: 'AALGLWLSVTSDIVHIWGALDFTLSR'
       },
       'II': {
-        single: 'LGLWLSVGALDFTLS',
-        sliding: 'AALGLWLSVGALDFTLSR'
+        single: 'SGELKFEKRTSSAQ',
+        sliding: 'SGELKFEKRTSSAQFDEYMKELGVGIAL'
       }
     };
     

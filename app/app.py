@@ -36,9 +36,17 @@ tokenizer = None
 transHLA_I_model = None
 transHLA_II_model = None
 
-# Don't load models at startup to reduce initial memory usage
-# Load them on-demand when needed
-print("Models will be loaded on first prediction request")
+# Load models on startup since they are already cached in the Docker image
+print("Loading models on startup...")
+try:
+    models_loaded = load_models()
+    if models_loaded:
+        print("Models loaded successfully on startup")
+    else:
+        print("Failed to load models on startup, will try again when needed")
+except Exception as e:
+    print(f"Error during startup model loading: {str(e)}")
+    traceback.print_exc()
 
 def pad_sequences(sequences, max_length):
     """Pad sequences to a fixed length."""
