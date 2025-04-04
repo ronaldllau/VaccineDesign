@@ -1,45 +1,72 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const chalk = require('chalk') || { green: text => text, blue: text => text, red: text => text, yellow: text => text };
+// Import packages as ESM modules
+import { spawn } from 'child_process';
+import process from 'process';
+import chalk from 'chalk';
 
-// Function to create a server process
-function createServer(command, args, name, options = {}) {
-  console.log(`Starting ${name}...`);
+// Track running processes
+const runningProcesses = [];
+
+// Function to handle process termination
+function cleanup() {
+  console.log(chalk.yellow('\nShutting down servers...'));
   
-  const server = spawn(command, args, {
-    stdio: 'pipe',
-    shell: true,
-    ...options
+  runningProcesses.forEach(proc => {
+    if (!proc.killed) {
+      proc.kill();
+    }
   });
   
-  server.stdout.on('data', (data) => {
-    console.log(`${chalk.blue(`[${name}]`)} ${data.toString().trim()}`);
-  });
-  
-  server.stderr.on('data', (data) => {
-    console.error(`${chalk.red(`[${name} ERROR]`)} ${data.toString().trim()}`);
-  });
-  
-  server.on('close', (code) => {
-    console.log(`${chalk.yellow(`[${name}]`)} Process exited with code ${code}`);
-  });
-  
-  return server;
+  console.log(chalk.yellow('All servers stopped. Goodbye!'));
+  process.exit(0);
 }
 
-// Start frontend server (Vite)
-const frontendServer = createServer('npm', ['run', 'dev'], 'Frontend');
+// Register cleanup handlers for graceful shutdown
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
 
-// Start backend server (Flask)
-const backendServer = createServer('python', ['run.py'], 'Backend');
+// Start Frontend Server (Vite)
+console.log(chalk.green('Starting Frontend...'));
+const frontendProcess = spawn('npm', ['run', 'dev'], { 
+  stdio: 'pipe',
+  shell: true
+});
+runningProcesses.push(frontendProcess);
 
-// Handle process termination
-process.on('SIGINT', () => {
-  console.log('Shutting down servers...');
-  frontendServer.kill();
-  backendServer.kill();
-  process.exit(0);
+// Start Backend Server (Flask)
+console.log(chalk.green('Starting Backend...'));
+const backendProcess = spawn('python', ['run.py'], { 
+  stdio: 'pipe',
+  shell: true
+});
+runningProcesses.push(backendProcess);
+
+// Helper function to prefix log lines
+function prefixLines(data, prefix, color) {
+  return data
+    .toString()
+    .trim()
+    .split('\n')
+    .map(line => color(`[${prefix}] `) + line)
+    .join('\n');
+}
+
+// Handle frontend output
+frontendProcess.stdout.on('data', (data) => {
+  console.log(prefixLines(data, 'Frontend', chalk.blue));
+});
+frontendProcess.stderr.on('data', (data) => {
+  console.error(prefixLines(data, 'Frontend', chalk.blue));
+});
+
+// Handle backend output
+backendProcess.stdout.on('data', (data) => {
+  console.log(prefixLines(data, 'Backend', chalk.green));
+});
+backendProcess.stderr.on('data', (data) => {
+  console.error(prefixLines(data, 'Backend', chalk.green));
 });
 
 console.log(chalk.green('Both servers are running...'));
-console.log('Press Ctrl+C to stop both servers.'); 
+console.log(chalk.blue('Frontend server typically runs on http://localhost:5173'));
+console.log(chalk.green('Backend server runs on http://localhost:8080'));
+console.log(chalk.yellow('Press Ctrl+C to stop all servers')); 

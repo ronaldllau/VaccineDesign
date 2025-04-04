@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "TransHLA Epitope Predictor with React frontend",
   "main": "run.py",
+  "type": "module",
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
