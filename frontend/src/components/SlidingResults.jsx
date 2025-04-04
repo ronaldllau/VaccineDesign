@@ -23,6 +23,17 @@ Chart.register(
   Filler
 )
 
+// Try to get jQuery - first check if it's available globally
+const $ = window.$ || window.jQuery || (element => ({
+  empty: () => {
+    if (element && element.innerHTML) {
+      element.innerHTML = '';
+    }
+  },
+  width: () => element ? element.clientWidth : 0,
+  height: () => element ? element.clientHeight : 0
+}));
+
 const SlidingResults = ({ results }) => {
   const [showOnlyEpitopes, setShowOnlyEpitopes] = useState(true)
   const [sortBy, setSortBy] = useState('position')
@@ -150,9 +161,18 @@ const SlidingResults = ({ results }) => {
 
   useEffect(() => {
     if (viewerRef.current && hoveredResidue !== null) {
-      highlightResidue(hoveredResidue)
+      try {
+        highlightResidue(hoveredResidue)
+      } catch (e) {
+        console.error("Error highlighting residue in 3D view:", e)
+        // Continue with other highlighting even if 3D fails
+      }
     } else if (viewerRef.current && hoveredResidue === null) {
-      resetHighlighting()
+      try {
+        resetHighlighting()
+      } catch (e) {
+        console.error("Error resetting highlighting in 3D view:", e)
+      }
     }
   }, [hoveredResidue])
 
@@ -385,45 +405,62 @@ const SlidingResults = ({ results }) => {
   const initViewer = (structure) => {
     if (!containerRef.current || !structure) return
     
-    const containerElement = $(containerRef.current)
-    if (containerElement.width() === 0 || containerElement.height() === 0) {
-      console.error("Container has zero dimensions, cannot initialize viewer")
-      setError3D("Error initializing 3D viewer: container has zero size")
-      return
-    }
-    
-    if (viewerRef.current) {
-      try {
-        $(containerRef.current).empty()
-      } catch (e) {
-        console.error("Error clearing container:", e)
-      }
-    }
-
     try {
-      viewerRef.current = $3Dmol.createViewer(
-        containerElement,
-        {
-          defaultcolors: $3Dmol.rasmolElementColors,
-          backgroundColor: 'white',
+      // Use a safer way to check container size
+      const containerElement = containerRef.current;
+      const containerWidth = containerElement.clientWidth;
+      const containerHeight = containerElement.clientHeight;
+      
+      if (containerWidth === 0 || containerHeight === 0) {
+        console.error("Container has zero dimensions, cannot initialize viewer");
+        setError3D("Error initializing 3D viewer: container has zero size");
+        return;
+      }
+      
+      if (viewerRef.current) {
+        try {
+          // Safely clear the container
+          if (containerRef.current) {
+            if (typeof $ === 'function') {
+              $(containerRef.current).empty();
+            } else {
+              containerRef.current.innerHTML = '';
+            }
+          }
+        } catch (e) {
+          console.error("Error clearing container:", e);
         }
-      )
+      }
 
-      viewerRef.current.addModel(structure, "pdb")
-      
-      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
-      
-      viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
-        opacity: 0.6,
-        color: 'white'
-      })
-      
-      viewerRef.current.zoomTo()
-      
-      viewerRef.current.render()
+      try {
+        // Create a viewer with the DOM element directly
+        viewerRef.current = $3Dmol.createViewer(
+          containerElement,
+          {
+            defaultcolors: $3Dmol.rasmolElementColors,
+            backgroundColor: 'white',
+          }
+        );
+
+        viewerRef.current.addModel(structure, "pdb");
+        
+        viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } });
+        
+        viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
+          opacity: 0.6,
+          color: 'white'
+        });
+        
+        viewerRef.current.zoomTo();
+        
+        viewerRef.current.render();
+      } catch (e) {
+        console.error("Error initializing 3Dmol viewer:", e);
+        setError3D("Error initializing 3D viewer. Try using another browser or device.");
+      }
     } catch (e) {
-      console.error("Error initializing 3Dmol viewer:", e)
-      setError3D("Error initializing 3D viewer")
+      console.error("General error in initViewer:", e);
+      setError3D("Failed to initialize 3D viewer");
     }
   }
 
@@ -457,6 +494,7 @@ const SlidingResults = ({ results }) => {
       viewerRef.current.render()
     } catch (e) {
       console.error("Error highlighting residue:", e)
+      // Don't let 3D errors block other UI functionality
     }
   }
 
@@ -476,6 +514,7 @@ const SlidingResults = ({ results }) => {
       viewerRef.current.render()
     } catch (e) {
       console.error("Error resetting highlighting:", e)
+      // Don't let 3D errors block other UI functionality
     }
   }
 
@@ -547,6 +586,11 @@ const SlidingResults = ({ results }) => {
         </Alert>
       </div>
       
+      {/* Add a help message for users about the click interaction */}
+      <div style={{ marginTop: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: '#666' }}>
+        <em>Tip: You can click on sequence elements or table rows to select and highlight them.</em>
+      </div>
+      
       {/* Sequence Map Section */}
       <div style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)', marginBottom: '1.5rem' }}>
         <div style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '1rem' }}>
@@ -554,30 +598,34 @@ const SlidingResults = ({ results }) => {
         </div>
         
         <div style={{ backgroundColor: 'white', borderRadius: '0.375rem', padding: '1.5rem', border: '1px solid #DCE8E0' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <Form.Group style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <Form.Label style={{ margin: 0, fontWeight: 500, fontSize: '0.9rem', color: '#33523E' }}>
-                Top epitopes:
-              </Form.Label>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <Form.Group controlId="showOnlyEpitopes" className="mb-0">
+                <Form.Check 
+                  type="checkbox"
+                  label="Show only epitopes"
+                  checked={showOnlyEpitopes}
+                  onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
+                />
+              </Form.Group>
+            </div>
+            
+            <div className="d-flex align-items-center">
+              <span className="me-2">Top </span>
               <Form.Select 
-                size="sm"
                 value={topNFilter}
                 onChange={(e) => setTopNFilter(parseInt(e.target.value))}
-                style={{
-                  width: 'auto',
-                  borderColor: '#DCE8E0',
-                  color: '#33523E',
-                  borderRadius: '4px',
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: 'white',
-                }}
+                style={{ width: 'auto' }}
+                size="sm"
               >
-                <option value="3">Top 3</option>
-                <option value="5">Top 5</option>
-                <option value="10">Top 10</option>
-                <option value="0">Show All</option>
+                <option value="0">All</option>
+                <option value="1">1</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
               </Form.Select>
-            </Form.Group>
+              <span className="ms-2">epitopes</span>
+            </div>
           </div>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', fontFamily: 'monospace', letterSpacing: '0', lineHeight: '1.5' }}>
@@ -637,6 +685,18 @@ const SlidingResults = ({ results }) => {
                   }}
                   onMouseEnter={() => setHoveredResidue(index)}
                   onMouseLeave={() => setHoveredResidue(null)}
+                  onClick={() => {
+                    // Add click handler as a fallback for hover
+                    if (highestProbEpitope) {
+                      // Find the full epitope info from results
+                      const fullEpitope = results.results.find(
+                        e => e.position === highestProbEpitope.position && 
+                             e.peptide === highestProbEpitope.peptide
+                      );
+                      setHoveredEpitope(fullEpitope || highestProbEpitope);
+                      setHoveredResidue(index);
+                    }
+                  }}
                   title={highestProbEpitope ? 
                     `Position ${index+1}: ${char} 
 Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` : 
@@ -809,19 +869,6 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
             alignItems: 'center',
             flexWrap: 'nowrap'
           }}>
-            <Form.Check
-              inline
-              type="checkbox"
-              id="show-epitopes-only"
-              label="Show Epitopes Only"
-              checked={showOnlyEpitopes}
-              onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
-              style={{
-                marginRight: '1rem',
-                fontWeight: 500,
-                whiteSpace: 'nowrap'
-              }}
-            />
             <Form.Select 
               size="sm" 
               className="d-inline-block"
@@ -892,6 +939,16 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                     onMouseLeave={() => {
                       setHoveredEpitope(null)
                       setHoveredResidue(null)
+                    }}
+                    onClick={() => {
+                      // Toggle the selection on click
+                      if (hoveredEpitope === result) {
+                        setHoveredEpitope(null)
+                        setHoveredResidue(null)
+                      } else {
+                        setHoveredEpitope(result)
+                        setHoveredResidue(result.position - 1)
+                      }
                     }}
                   >
                     <td>{result.position}</td>
