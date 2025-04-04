@@ -7,6 +7,9 @@ echo "Setting up TransHLA Predictor..."
 mkdir -p ./.cache/huggingface
 mkdir -p ./.cache/torch/hub/checkpoints
 
+# Uninstall existing package to avoid conflicts
+pip uninstall -y transhla-predictor 2>/dev/null || true
+
 # Determine Python version to handle compatibility issues
 PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
 echo "Detected Python version: $PYTHON_VERSION"
@@ -34,9 +37,13 @@ if [[ "$PYTHON_VERSION" == "3.12" ]]; then
     
     # Other utilities
     pip install requests==2.31.0 gunicorn==21.2.0
+    
+    # Install in development mode with --no-deps to avoid dependency conflicts
+    pip install -e . --no-deps
 else
     # For Python 3.8-3.11, use setup.py
     echo "Using standard package installation..."
+    pip uninstall -y flask || true  # Remove any existing Flask installation
     pip install -e .
     
     # Install fair-esm separately to avoid potential issues
