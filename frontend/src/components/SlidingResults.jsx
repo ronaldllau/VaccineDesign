@@ -599,17 +599,6 @@ const SlidingResults = ({ results }) => {
         
         <div style={{ backgroundColor: 'white', borderRadius: '0.375rem', padding: '1.5rem', border: '1px solid #DCE8E0' }}>
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <Form.Group controlId="showOnlyEpitopes" className="mb-0">
-                <Form.Check 
-                  type="checkbox"
-                  label="Show only epitopes"
-                  checked={showOnlyEpitopes}
-                  onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
-                />
-              </Form.Group>
-            </div>
-            
             <div className="d-flex align-items-center">
               <span className="me-2">Top </span>
               <Form.Select 
@@ -867,8 +856,17 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
           <div style={{ 
             display: 'flex', 
             alignItems: 'center',
-            flexWrap: 'nowrap'
+            flexWrap: 'nowrap',
+            gap: '1rem'
           }}>
+            <Form.Group controlId="showOnlyEpitopes" className="mb-0 me-2">
+              <Form.Check 
+                type="checkbox"
+                label="Show only epitopes"
+                checked={showOnlyEpitopes}
+                onChange={(e) => setShowOnlyEpitopes(e.target.checked)}
+              />
+            </Form.Group>
             <Form.Select 
               size="sm" 
               className="d-inline-block"
