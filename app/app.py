@@ -30,23 +30,29 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 MAX_CACHE_SIZE = 100
 prediction_cache = {}
 
-# Model loading flag and instances
-models_loaded = False
-tokenizer = None
-transHLA_I_model = None
-transHLA_II_model = None
-
-# Load models on startup since they are already cached in the Docker image
-print("Loading models on startup...")
+# Import model loader
 try:
-    models_loaded = load_models()
-    if models_loaded:
-        print("Models loaded successfully on startup")
-    else:
-        print("Failed to load models on startup, will try again when needed")
-except Exception as e:
-    print(f"Error during startup model loading: {str(e)}")
-    traceback.print_exc()
+    from .model_loader import load_models, tokenizer, transHLA_I_model, transHLA_II_model, models_loaded
+    print(f"Models imported from model_loader, loaded status: {models_loaded}")
+except ImportError:
+    # Fallback to local variables if import fails
+    models_loaded = False
+    tokenizer = None
+    transHLA_I_model = None
+    transHLA_II_model = None
+    
+    # Load models on startup since they are already cached in the Docker image
+    print("Loading models on startup...")
+    try:
+        from .model_loader import load_models
+        models_loaded = load_models()
+        if models_loaded:
+            print("Models loaded successfully on startup")
+        else:
+            print("Failed to load models on startup, will try again when needed")
+    except Exception as e:
+        print(f"Error during startup model loading: {str(e)}")
+        traceback.print_exc()
 
 def pad_sequences(sequences, max_length):
     """Pad sequences to a fixed length."""
@@ -57,31 +63,6 @@ def pad_sequences(sequences, max_length):
             seq.extend([1] * padding_length)
         padded_sequences.append(seq)
     return padded_sequences
-
-def load_models():
-    """Attempt to load the TransHLA models."""
-    global tokenizer, transHLA_I_model, transHLA_II_model
-    
-    try:
-        print("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D")
-        
-        print("Loading TransHLA_I model...")
-        transHLA_I_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_I", trust_remote_code=True)
-        transHLA_I_model.to(device)
-        transHLA_I_model.eval()
-        
-        print("Loading TransHLA_II model...")
-        transHLA_II_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_II", trust_remote_code=True)
-        transHLA_II_model.to(device)
-        transHLA_II_model.eval()
-        
-        print("All models loaded successfully!")
-        return True
-    except Exception as e:
-        print(f"Error loading models: {str(e)}")
-        traceback.print_exc()
-        return False
 
 def is_valid_peptide(peptide):
     """Check if a peptide contains only valid amino acid letters."""
