@@ -45,6 +45,9 @@ const SlidingResults = ({ results }) => {
   const [hoveredEpitope, setHoveredEpitope] = useState(null)
   const [hoveredResidue, setHoveredResidue] = useState(null)
   
+  const [chartXAxis, setChartXAxis] = useState('position')
+  const [chartYAxis, setChartYAxis] = useState('probability')
+  
   const [selectedPeptide, setSelectedPeptide] = useState(null);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   
@@ -157,7 +160,7 @@ const SlidingResults = ({ results }) => {
         }
       }
     }
-  }, [results])
+  }, [results, chartXAxis, chartYAxis])
 
   useEffect(() => {
     if (viewerRef.current && hoveredResidue !== null) {
@@ -266,24 +269,44 @@ const SlidingResults = ({ results }) => {
     
     const ctx = distributionChartRef.current.getContext('2d')
     
-    const positions = Array.from(new Set(results.results.map(r => r.position))).sort((a, b) => a - b)
+    const xValues = Array.from(new Set(results.results.map(r => {
+      if (chartXAxis === 'position') return r.position;
+      if (chartXAxis === 'length') return r.length;
+      return r.probability;
+    }))).sort((a, b) => a - b);
     
-    const positionData = positions.map(pos => {
-      const peptidesAtPosition = results.results.filter(r => r.position === pos)
-      const avgProbability = peptidesAtPosition.reduce((sum, p) => sum + p.probability, 0) / peptidesAtPosition.length
-      return {
-        position: pos,
-        probability: avgProbability
+    const chartData = xValues.map(xValue => {
+      const matchingItems = results.results.filter(r => {
+        if (chartXAxis === 'position') return r.position === xValue;
+        if (chartXAxis === 'length') return r.length === xValue;
+        return Math.abs(r.probability - xValue) < 0.001;
+      });
+      
+      let yValue = 0;
+      if (matchingItems.length > 0) {
+        yValue = matchingItems.reduce((sum, item) => {
+          if (chartYAxis === 'position') return sum + item.position;
+          if (chartYAxis === 'length') return sum + item.length;
+          return sum + item.probability;
+        }, 0) / matchingItems.length;
       }
-    })
+      
+      return {
+        x: xValue,
+        y: yValue
+      };
+    });
+    
+    const xAxisLabel = chartXAxis.charAt(0).toUpperCase() + chartXAxis.slice(1);
+    const yAxisLabel = chartYAxis.charAt(0).toUpperCase() + chartYAxis.slice(1);
     
     distributionChartInstance.current = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: positionData.map(p => p.position),
+        labels: chartData.map(d => d.x),
         datasets: [{
-          label: 'Average Epitope Probability',
-          data: positionData.map(p => p.probability),
+          label: `${yAxisLabel} by ${xAxisLabel}`,
+          data: chartData.map(d => d.y),
           borderColor: 'rgba(94, 159, 127, 1)',
           backgroundColor: 'rgba(94, 159, 127, 0.2)',
           borderWidth: 2,
@@ -298,7 +321,7 @@ const SlidingResults = ({ results }) => {
           x: {
             title: {
               display: true,
-              text: 'Position',
+              text: xAxisLabel,
               color: '#3A424E',
               font: {
                 family: 'Helvetica, Inter, system-ui, sans-serif',
@@ -317,11 +340,11 @@ const SlidingResults = ({ results }) => {
             }
           },
           y: {
-            min: 0,
-            max: 1,
+            min: chartYAxis === 'probability' ? 0 : undefined,
+            max: chartYAxis === 'probability' ? 1 : undefined,
             title: {
               display: true,
-              text: 'Probability',
+              text: yAxisLabel,
               color: '#3A424E',
               font: {
                 family: 'Helvetica, Inter, system-ui, sans-serif',
@@ -347,10 +370,10 @@ const SlidingResults = ({ results }) => {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `Probability: ${context.raw.toFixed(3)}`
+                return `${yAxisLabel}: ${context.raw.toFixed(3)}`;
               },
               title: function(context) {
-                return `Position: ${context[0].label}`
+                return `${xAxisLabel}: ${context[0].label}`;
               }
             },
             titleFont: {
@@ -369,7 +392,7 @@ const SlidingResults = ({ results }) => {
           },
           title: {
             display: true,
-            text: 'Epitope Probability Distribution',
+            text: `${yAxisLabel} Distribution by ${xAxisLabel}`,
             font: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
               size: 13,
@@ -380,7 +403,7 @@ const SlidingResults = ({ results }) => {
           }
         }
       }
-    })
+    });
   }
 
   const loadStructure = async (sequence) => {
@@ -444,11 +467,14 @@ const SlidingResults = ({ results }) => {
 
         viewerRef.current.addModel(structure, "pdb");
         
-        viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } });
+        // Change from spectrum coloring to a single light gray color for better highlighting contrast
+        viewerRef.current.setStyle({}, { 
+          cartoon: { color: '#CCCCCC' } 
+        });
         
         viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
           opacity: 0.6,
-          color: 'white'
+          color: '#DDDDDD'  // Light gray surface color
         });
         
         viewerRef.current.zoomTo();
@@ -504,11 +530,12 @@ const SlidingResults = ({ results }) => {
     try {
       viewerRef.current.removeAllSurfaces()
       
-      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
+      // Reset to single color instead of spectrum
+      viewerRef.current.setStyle({}, { cartoon: { color: '#CCCCCC' } })
       
       viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
         opacity: 0.6,
-        color: 'white'
+        color: '#DDDDDD'
       })
       
       viewerRef.current.render()
@@ -828,7 +855,80 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Distribution
             </div>
-            <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+            <div className="chart-container" style={{ 
+              height: '220px', 
+              backgroundColor: 'white', 
+              borderRadius: '0.375rem', 
+              padding: '0.75rem', 
+              border: '1px solid #DCE8E0',
+              position: 'relative'
+            }}>
+              <div style={{ 
+                position: 'absolute', 
+                top: '6px', 
+                right: '10px', 
+                zIndex: 10,
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                background: 'rgba(255, 255, 255, 0.9)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '0.75rem'
+              }}>
+                <div className="d-flex align-items-center">
+                  <span style={{ marginRight: '4px', color: '#555' }}>X:</span>
+                  <Form.Select 
+                    size="sm"
+                    value={chartXAxis}
+                    onChange={(e) => {
+                      const newXAxis = e.target.value;
+                      // If new X-axis is same as current Y-axis, swap them
+                      if (newXAxis === chartYAxis) {
+                        setChartYAxis(chartXAxis);
+                      }
+                      setChartXAxis(newXAxis);
+                      setTimeout(() => createDistributionChart(), 50);
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 20px 2px 6px',
+                      height: 'auto',
+                      width: 'auto'
+                    }}
+                  >
+                    <option value="position">Position</option>
+                    <option value="length">Length</option>
+                    <option value="probability">Probability</option>
+                  </Form.Select>
+                </div>
+                <div className="d-flex align-items-center">
+                  <span style={{ marginRight: '4px', color: '#555' }}>Y:</span>
+                  <Form.Select
+                    size="sm"
+                    value={chartYAxis}
+                    onChange={(e) => {
+                      const newYAxis = e.target.value;
+                      // If new Y-axis is same as current X-axis, swap them
+                      if (newYAxis === chartXAxis) {
+                        setChartXAxis(chartYAxis);
+                      }
+                      setChartYAxis(newYAxis);
+                      setTimeout(() => createDistributionChart(), 50);
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 20px 2px 6px',
+                      height: 'auto',
+                      width: 'auto'
+                    }}
+                  >
+                    <option value="position">Position</option>
+                    <option value="length">Length</option>
+                    <option value="probability">Probability</option>
+                  </Form.Select>
+                </div>
+              </div>
               <canvas ref={distributionChartRef}></canvas>
             </div>
           </div>
