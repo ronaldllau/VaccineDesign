@@ -1026,7 +1026,6 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                   style={{ cursor: 'pointer' }}>
                   LENGTH {getSortIcon('length')}
                 </th>
-                <th>HLA CLASS</th>
                 <th className="sortable" onClick={() => handleHeaderClick('probability')}
                   style={{ cursor: 'pointer' }}>
                   PROBABILITY {getSortIcon('probability')}
@@ -1068,7 +1067,6 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                     <td>{result.position}</td>
                     <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
                     <td>{result.length}</td>
-                    <td>{result.class}</td>
                     <td>{result.probability.toFixed(3)}</td>
                     <td className={result.is_epitope ? 'result-positive' : 'result-negative'}
                       style={{ 
@@ -1081,7 +1079,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-3">No matching peptides found</td>
+                  <td colSpan="5" className="text-center py-3">No matching peptides found</td>
                 </tr>
               )}
             </tbody>

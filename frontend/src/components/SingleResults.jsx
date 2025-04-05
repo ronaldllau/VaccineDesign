@@ -131,7 +131,7 @@ const SingleResults = ({ results }) => {
           },
           title: {
             display: true,
-            text: `HLA Class ${results.results[0].hla_class} Prediction`,
+            text: `HLA Class ${hlaClass} Prediction`,
             font: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
               size: 13,
@@ -306,10 +306,11 @@ const SingleResults = ({ results }) => {
   const peptide = results.peptide
   const result = results.results[0]
   const isEpitope = result.is_epitope
-  const hlaClass = result.hla_class
+  
+  // Get HLA class from results or set a default value
+  const hlaClass = result.hla_class || (results.hla_class || 'I')
   
   // Get min and max for scaled gradient - for single peptide we can use 
-  // the actual probability and a delta to create a meaningful range
   const probability = result.probability
   const min = isEpitope ? Math.max(0, probability - 0.2) : 0
   const max = isEpitope ? Math.min(1, probability + 0.1) : 0.5
@@ -582,7 +583,7 @@ const SingleResults = ({ results }) => {
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Prediction Visualization
             </div>
-            <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+            <div className="chart-container" style={{ height: '300px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
               <canvas ref={chartRef}></canvas>
             </div>
           </div>
@@ -590,12 +591,11 @@ const SingleResults = ({ results }) => {
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Detailed Result
             </div>
-            <div className="table-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', border: '1px solid #DCE8E0', overflow: 'auto' }}>
+            <div className="table-container" style={{ height: '300px', backgroundColor: 'white', borderRadius: '0.375rem', border: '1px solid #DCE8E0', overflow: 'auto' }}>
               <Table striped hover className="results-table mb-0">
                 <thead>
                   <tr>
                     <th>PEPTIDE</th>
-                    <th>HLA CLASS</th>
                     <th>PROBABILITY</th>
                     <th>RESULT</th>
                   </tr>
@@ -604,7 +604,6 @@ const SingleResults = ({ results }) => {
                   {results.results.map((result, index) => (
                     <tr key={index}>
                       <td style={{ fontFamily: 'monospace' }}>{result.peptide}</td>
-                      <td>{result.hla_class}</td>
                       <td>{result.probability.toFixed(3)}</td>
                       <td className={result.is_epitope ? 'result-positive' : 'result-negative'}
                         style={{ 
