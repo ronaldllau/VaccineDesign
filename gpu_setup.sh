@@ -91,8 +91,8 @@ fi
 # Install dependencies
 log_info "Installing Python dependencies..."
 pip install flask==2.2.3 werkzeug==2.2.3 flask-cors==3.0.10
-pip install numpy==1.25.2 pandas>=2.0.0 scikit-learn>=1.0.0
-pip install transformers>=4.30.0 requests>=2.25.0
+pip install numpy==1.25.2 pandas>=2.0.0 scikit-learn>=1.0.0 matplotlib>=3.5.0 seaborn>=0.12.0
+pip install transformers>=4.30.0 requests>=2.25.0 tqdm>=4.65.0 joblib>=1.2.0 pillow>=9.0.0
 
 # Install fair-esm separately
 log_info "Installing fair-esm..."

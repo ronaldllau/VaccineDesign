@@ -8,13 +8,27 @@ py_major, py_minor = python_version.major, python_version.minor
 
 # Define base dependencies
 REQUIRED_PACKAGES = [
+    # Web framework
     "flask==2.2.3",
     "werkzeug==2.2.3",
     "flask-cors==3.0.10",
+    
+    # Data processing
     "pandas>=2.0.0",
     "scikit-learn>=1.0.0",
+    
+    # Visualization
+    "matplotlib>=3.5.0",
+    "seaborn>=0.12.0",
+    
+    # ML/DL frameworks
     "transformers>=4.30.0",
+    
+    # Common utilities
     "requests>=2.25.0",
+    "tqdm>=4.65.0",
+    "joblib>=1.2.0",
+    "pillow>=9.0.0",
 ]
 
 # Add numpy with version constraints based on Python version
