@@ -71,9 +71,15 @@ if command -v conda &> /dev/null; then
   eval "$(conda shell.bash hook)"
   conda activate transhla
   
-  # Install PyTorch with CUDA - use specific compatible versions
-  log_info "Installing PyTorch with CUDA support..."
-  conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia -y
+  # Install PyTorch with CUDA - use LTS version for better stability
+  log_info "Installing PyTorch with CUDA support (LTS version)..."
+  conda install pytorch==1.8.2 torchvision==0.9.2 torchaudio==0.8.2 cudatoolkit=11.1 -c pytorch-lts -c nvidia -y
+  
+  # Fallback if LTS version fails
+  if [ $? -ne 0 ]; then
+    log_warning "LTS version installation failed, trying stable release..."
+    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -y
+  fi
   
   log_success "PyTorch with CUDA support installed!"
 else
@@ -83,9 +89,15 @@ else
   python -m venv venv
   source venv/bin/activate
   
-  # Install PyTorch with CUDA support - use specific compatible versions
+  # Install PyTorch with CUDA support - use LTS version for better stability
   log_info "Installing PyTorch with CUDA support via pip..."
-  pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+  pip install torch==1.8.2+cu111 torchvision==0.9.2+cu111 torchaudio==0.8.2 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html
+  
+  # Check if installation succeeded
+  if [ $? -ne 0 ]; then
+    log_warning "LTS version installation failed, trying stable release..."
+    pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+  fi
 fi
 
 # Install dependencies
@@ -113,19 +125,72 @@ fi
 log_info "Installing Node.js dependencies..."
 npm install
 
-# Create a model preloader script
-log_info "Creating model preloader script..."
+# Add fix for JIT-related issues
+log_info "Adding fix for JIT-related issues..."
+cat > fix_torch_jit.py << EOF
+#!/usr/bin/env python3
+"""
+This script addresses the 'undefined symbol: iJIT_NotifyEvent' error in PyTorch.
+Run this before importing torch if you encounter this error.
+"""
+import os
+import sys
+
+def apply_fix():
+    """Apply environment fixes for PyTorch JIT issues."""
+    # Disable JIT profiling to avoid the undefined symbol error
+    os.environ['PYTORCH_JIT'] = '0'
+    os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
+    
+    # Also set CUDA device if available to avoid other potential issues
+    try:
+        import torch
+        if torch.cuda.is_available():
+            # Set to use first GPU by default
+            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+            print(f"CUDA is available. Using device: {torch.cuda.get_device_name(0)}")
+        else:
+            print("CUDA is not available. Using CPU.")
+    except ImportError:
+        print("Warning: Could not import torch to check CUDA. Will continue with CPU.")
+    
+    print("PyTorch JIT fixes applied.")
+    return True
+
+def main():
+    """Main function to apply the fix."""
+    print("Applying fix for PyTorch JIT-related issues...")
+    apply_fix()
+    print("Fix applied. You should now be able to import torch without JIT errors.")
+
+if __name__ == "__main__":
+    main()
+EOF
+chmod +x fix_torch_jit.py
+
+# Update preload_models.py to use the JIT fix
+log_info "Updating preload_models.py to use JIT fix..."
 cat > preload_models.py << EOF
 import os
 import sys
 import time
-import torch
-
-# Add app directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 # Get project root directory
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# Apply JIT fix before importing torch
+try:
+    from fix_torch_jit import apply_fix
+    apply_fix()
+    print("Applied JIT fix")
+except ImportError:
+    print("JIT fix not found, continuing without it")
+
+# Now import torch
+import torch
+
+# Add app directory to path
+sys.path.append(os.path.join(PROJECT_ROOT, 'app'))
 
 # Set cache directories with relative paths
 CACHE_DIR = os.path.join(PROJECT_ROOT, '.cache')

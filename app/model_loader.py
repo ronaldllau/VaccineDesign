@@ -1,10 +1,24 @@
-import torch
 import traceback
 import os
 import sys
 
 # Get the project root directory (parent of the app directory)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(PROJECT_ROOT)
+
+# Apply JIT fix before importing torch
+try:
+    from fix_torch_jit import apply_fix
+    apply_fix()
+    print("Applied JIT fix in model_loader")
+except ImportError:
+    print("JIT fix not found, continuing without it")
+    # Apply environment variable fixes directly if module not found
+    os.environ['PYTORCH_JIT'] = '0'
+    os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
+
+# Now import torch after the fixes
+import torch
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -12,7 +26,6 @@ print(f"Model loader using device: {device}")
 
 # Apply circular import fix if the patch file exists
 try:
-    sys.path.append(PROJECT_ROOT)
     from circular_import_fix import apply_patch
     apply_patch()
     print("Applied circular import fix")
