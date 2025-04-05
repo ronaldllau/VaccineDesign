@@ -176,7 +176,19 @@ rm requirements.temp.txt
 # Install Node.js dependencies if npm is available
 if command -v npm &> /dev/null; then
   log_info "Installing Node.js dependencies..."
+  # Install root level dependencies
   npm install
+  
+  # Install frontend dependencies
+  if [ -d "frontend" ]; then
+    log_info "Installing frontend dependencies..."
+    cd frontend
+    npm install
+    cd ..
+    log_success "Frontend dependencies installed!"
+  else
+    log_warning "Frontend directory not found. Skipping frontend dependencies."
+  fi
 else
   log_warning "Skipping Node.js dependencies installation (npm not found)."
 fi

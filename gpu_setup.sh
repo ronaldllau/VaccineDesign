@@ -97,7 +97,19 @@ fi
 
 # Install npm dependencies
 log_info "Installing Node.js dependencies..."
+# Install root dependencies
 npm install
+
+# Install frontend dependencies
+if [ -d "frontend" ]; then
+  log_info "Installing frontend dependencies..."
+  cd frontend
+  npm install
+  cd ..
+  log_success "Frontend dependencies installed!"
+else
+  log_warning "Frontend directory not found. Skipping frontend dependencies."
+fi
 
 # Create JIT fixes script
 log_info "Creating PyTorch JIT fix..."
