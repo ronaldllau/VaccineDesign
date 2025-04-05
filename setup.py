@@ -23,7 +23,7 @@ REQUIRED_PACKAGES = [
     
     # ML/DL frameworks
     "transformers>=4.30.0",
-    "torchvision==0.9.2",  # Using LTS version for better stability
+    "torchvision>=0.15.2",  # Using a newer version compatible with PyTorch 2.0+
     
     # Common utilities
     "requests>=2.25.0",
@@ -39,7 +39,7 @@ else:
     REQUIRED_PACKAGES.append("numpy>=1.21.0,<1.26.0")
 
 # Add PyTorch with specific version to avoid compatibility issues
-REQUIRED_PACKAGES.append("torch==1.8.2")  # Using LTS version for better stability
+REQUIRED_PACKAGES.append("torch>=2.0.0")  # Using a newer version that's widely available
 
 # Get system information for diagnostic info
 system_info = f"Python {sys.version.split()[0]} on {platform.system()} {platform.machine()}"

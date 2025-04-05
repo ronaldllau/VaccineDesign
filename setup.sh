@@ -45,8 +45,11 @@ fi
 PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
 log_info "Detected Python version: $PYTHON_VERSION"
 
-# Check for minimum Python version
-if (( $(echo "$PYTHON_VERSION < 3.8" | bc -l) )); then
+# Check for minimum Python version - without using bc
+PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d'.' -f1)
+PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d'.' -f2)
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 8 ]); then
   log_error "Python 3.8 or higher is required. Found version $PYTHON_VERSION"
   exit 1
 fi
@@ -135,8 +138,8 @@ joblib>=1.2.0
 pillow>=9.0.0
 EOF
 
-# Add specific NumPy version based on Python version
-if (( $(echo "$PYTHON_VERSION >= 3.10" | bc -l) )); then
+# Add specific NumPy version based on Python version - without using bc
+if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 10 ]; then
   echo "numpy>=1.25.0" >> requirements.temp.txt
 else
   echo "numpy>=1.21.0,<1.26.0" >> requirements.temp.txt
@@ -145,18 +148,15 @@ fi
 # Add PyTorch based on GPU availability
 if [ "$HAS_GPU" = true ]; then
   echo "# PyTorch with GPU support" >> requirements.temp.txt
-  echo "torch==1.8.2" >> requirements.temp.txt
-  echo "torchvision==0.9.2" >> requirements.temp.txt
-  echo "torchaudio==0.8.2" >> requirements.temp.txt
+  echo "torch>=2.0.0" >> requirements.temp.txt
+  echo "torchvision>=0.15.2" >> requirements.temp.txt
+  echo "torchaudio>=0.13.0" >> requirements.temp.txt
 else
   echo "# PyTorch CPU only" >> requirements.temp.txt
-  echo "torch==1.8.2" >> requirements.temp.txt
-  echo "torchvision==0.9.2" >> requirements.temp.txt
-  echo "torchaudio==0.8.2" >> requirements.temp.txt
+  echo "torch>=2.0.0" >> requirements.temp.txt
+  echo "torchvision>=0.15.2" >> requirements.temp.txt
+  echo "torchaudio>=0.13.0" >> requirements.temp.txt
 fi
-
-# Add transformers and other packages
-echo "transformers>=4.30.0" >> requirements.temp.txt
 
 # Install dependencies
 log_info "Installing Python dependencies..."

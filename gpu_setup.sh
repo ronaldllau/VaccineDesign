@@ -69,6 +69,14 @@ source venv/bin/activate
 export PYTORCH_JIT=0
 export PYTORCH_DISABLE_JIT_PROFILING=1
 
+# Install basic system packages if missing
+log_info "Installing required system packages..."
+if command -v apt-get &> /dev/null; then
+  # For Debian/Ubuntu
+  sudo apt-get update
+  sudo apt-get install -y build-essential
+fi
+
 # Install PyTorch with CUDA support using pip
 log_info "Installing PyTorch with CUDA support..."
 pip install --upgrade pip setuptools wheel
