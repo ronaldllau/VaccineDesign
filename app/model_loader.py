@@ -6,16 +6,17 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(PROJECT_ROOT)
 
-# Apply JIT fix before importing torch
+# Apply JIT environment variables directly
+os.environ['PYTORCH_JIT'] = '0'
+os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
+
+# Try to apply JIT fix if available
 try:
     from fix_torch_jit import apply_fix
     apply_fix()
     print("Applied JIT fix in model_loader")
 except ImportError:
-    print("JIT fix not found, continuing without it")
-    # Apply environment variable fixes directly if module not found
-    os.environ['PYTORCH_JIT'] = '0'
-    os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
+    print("JIT fix not found, continuing with basic fixes")
 
 # Now import torch after the fixes
 import torch
@@ -24,15 +25,7 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Model loader using device: {device}")
 
-# Apply circular import fix if the patch file exists
-try:
-    from circular_import_fix import apply_patch
-    apply_patch()
-    print("Applied circular import fix")
-except ImportError:
-    print("Circular import fix not found, continuing without it")
-
-# Now import transformers after the fix
+# Import transformers
 from transformers import AutoTokenizer, AutoModel
 
 # Set cache directory paths
@@ -82,16 +75,32 @@ def load_models():
         print(f"Loading models with device: {device}")
         print(f"Using cache directory: {HF_CACHE_DIR}")
         
+        # First load tokenizer
         print("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained("facebook/esm2_t33_650M_UR50D", cache_dir=HF_CACHE_DIR)
+        tokenizer = AutoTokenizer.from_pretrained(
+            "facebook/esm2_t33_650M_UR50D", 
+            cache_dir=HF_CACHE_DIR,
+            local_files_only=False
+        )
         
+        # Then load the models
         print("Loading TransHLA_I model...")
-        transHLA_I_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_I", trust_remote_code=True, cache_dir=HF_CACHE_DIR)
+        transHLA_I_model = AutoModel.from_pretrained(
+            "SkywalkerLu/TransHLA_I", 
+            trust_remote_code=True, 
+            cache_dir=HF_CACHE_DIR,
+            local_files_only=False
+        )
         transHLA_I_model.to(device)
         transHLA_I_model.eval()
         
         print("Loading TransHLA_II model...")
-        transHLA_II_model = AutoModel.from_pretrained("SkywalkerLu/TransHLA_II", trust_remote_code=True, cache_dir=HF_CACHE_DIR)
+        transHLA_II_model = AutoModel.from_pretrained(
+            "SkywalkerLu/TransHLA_II", 
+            trust_remote_code=True, 
+            cache_dir=HF_CACHE_DIR,
+            local_files_only=False
+        )
         transHLA_II_model.to(device)
         transHLA_II_model.eval()
         

@@ -60,51 +60,25 @@ mkdir -p ./.cache/torch/hub/checkpoints
 export HF_HOME=$(pwd)/.cache/huggingface
 export TORCH_HOME=$(pwd)/.cache/torch
 
-# Handle conda if available
-if command -v conda &> /dev/null; then
-  log_info "Conda detected. Creating optimized environment..."
-  
-  # Create conda environment
-  conda create -n transhla python=3.9 -y
-  
-  # Activate environment
-  eval "$(conda shell.bash hook)"
-  conda activate transhla
-  
-  # Install PyTorch with CUDA - use LTS version for better stability
-  log_info "Installing PyTorch with CUDA support (LTS version)..."
-  conda install pytorch==1.8.2 torchvision==0.9.2 torchaudio==0.8.2 cudatoolkit=11.1 -c pytorch-lts -c nvidia -y
-  
-  # Fallback if LTS version fails
-  if [ $? -ne 0 ]; then
-    log_warning "LTS version installation failed, trying stable release..."
-    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -y
-  fi
-  
-  log_success "PyTorch with CUDA support installed!"
-else
-  log_info "Conda not detected. Using pip for installation..."
-  
-  # Create virtual environment
-  python -m venv venv
-  source venv/bin/activate
-  
-  # Install PyTorch with CUDA support - use LTS version for better stability
-  log_info "Installing PyTorch with CUDA support via pip..."
-  pip install torch==1.8.2+cu111 torchvision==0.9.2+cu111 torchaudio==0.8.2 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html
-  
-  # Check if installation succeeded
-  if [ $? -ne 0 ]; then
-    log_warning "LTS version installation failed, trying stable release..."
-    pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
-  fi
-fi
+# Create virtual environment
+log_info "Creating Python virtual environment..."
+python -m venv venv
+source venv/bin/activate
 
-# Install dependencies
+# Disable PyTorch JIT to avoid issues
+export PYTORCH_JIT=0
+export PYTORCH_DISABLE_JIT_PROFILING=1
+
+# Install PyTorch with CUDA support using pip
+log_info "Installing PyTorch with CUDA support..."
+pip install --upgrade pip setuptools wheel
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Install base dependencies
 log_info "Installing Python dependencies..."
 pip install flask==2.2.3 werkzeug==2.2.3 flask-cors==3.0.10
-pip install numpy==1.25.2 pandas>=2.0.0 scikit-learn>=1.0.0 matplotlib>=3.5.0 seaborn>=0.12.0
-pip install transformers>=4.30.0 requests>=2.25.0 tqdm>=4.65.0 joblib>=1.2.0 pillow>=9.0.0
+pip install numpy pandas scikit-learn matplotlib seaborn
+pip install transformers requests tqdm joblib pillow
 
 # Install fair-esm separately
 log_info "Installing fair-esm..."
@@ -125,24 +99,24 @@ fi
 log_info "Installing Node.js dependencies..."
 npm install
 
-# Add fix for JIT-related issues
-log_info "Adding fix for JIT-related issues..."
+# Create JIT fixes script
+log_info "Creating PyTorch JIT fix..."
 cat > fix_torch_jit.py << EOF
 #!/usr/bin/env python3
 """
-This script addresses the 'undefined symbol: iJIT_NotifyEvent' error in PyTorch.
-Run this before importing torch if you encounter this error.
+This script addresses potential JIT issues in PyTorch.
+Run this before importing torch if you encounter JIT-related errors.
 """
 import os
 import sys
 
 def apply_fix():
     """Apply environment fixes for PyTorch JIT issues."""
-    # Disable JIT profiling to avoid the undefined symbol error
+    # Disable JIT profiling to avoid symbol errors
     os.environ['PYTORCH_JIT'] = '0'
     os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
     
-    # Also set CUDA device if available to avoid other potential issues
+    # Also set CUDA device if available
     try:
         import torch
         if torch.cuda.is_available():
@@ -152,92 +126,19 @@ def apply_fix():
         else:
             print("CUDA is not available. Using CPU.")
     except ImportError:
-        print("Warning: Could not import torch to check CUDA. Will continue with CPU.")
+        print("Warning: Could not import torch to check CUDA.")
     
     print("PyTorch JIT fixes applied.")
     return True
 
-def main():
-    """Main function to apply the fix."""
-    print("Applying fix for PyTorch JIT-related issues...")
-    apply_fix()
-    print("Fix applied. You should now be able to import torch without JIT errors.")
-
 if __name__ == "__main__":
-    main()
+    print("Applying fixes for PyTorch JIT issues...")
+    apply_fix()
+    print("Fixes applied successfully.")
 EOF
 chmod +x fix_torch_jit.py
 
-# Update preload_models.py to use the JIT fix
-log_info "Updating preload_models.py to use JIT fix..."
-cat > preload_models.py << EOF
-import os
-import sys
-import time
-
-# Get project root directory
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-
-# Apply JIT fix before importing torch
-try:
-    from fix_torch_jit import apply_fix
-    apply_fix()
-    print("Applied JIT fix")
-except ImportError:
-    print("JIT fix not found, continuing without it")
-
-# Now import torch
-import torch
-
-# Add app directory to path
-sys.path.append(os.path.join(PROJECT_ROOT, 'app'))
-
-# Set cache directories with relative paths
-CACHE_DIR = os.path.join(PROJECT_ROOT, '.cache')
-HF_CACHE_DIR = os.path.join(CACHE_DIR, 'huggingface')
-TORCH_CACHE_DIR = os.path.join(CACHE_DIR, 'torch')
-
-# Set environment variables
-os.environ['HF_HOME'] = HF_CACHE_DIR
-os.environ['TORCH_HOME'] = TORCH_CACHE_DIR
-
-print(f"Project Root: {PROJECT_ROOT}")
-print(f"Cache Directory: {CACHE_DIR}")
-print(f"HF Cache: {HF_CACHE_DIR}")
-
-# Apply circular import fix
-try:
-    print("Applying circular import fix before loading models...")
-    from circular_import_fix import apply_patch
-    apply_patch()
-except ImportError:
-    print("Circular import fix not found, continuing without it")
-
-print("Preloading models to cache...")
-start_time = time.time()
-
-# Import and run model loader
-from model_loader import load_models
-success = load_models()
-
-if success:
-    print(f"Models preloaded successfully in {time.time() - start_time:.2f} seconds")
-    print("GPU memory usage:")
-    if torch.cuda.is_available():
-        for i in range(torch.cuda.device_count()):
-            device = torch.cuda.device(i)
-            memory_allocated = torch.cuda.memory_allocated(device) / 1024**2
-            memory_reserved = torch.cuda.memory_reserved(device) / 1024**2
-            print(f"GPU {i}: Allocated: {memory_allocated:.2f} MB, Reserved: {memory_reserved:.2f} MB")
-else:
-    print("Failed to preload models")
-EOF
-
-# Run the model preloader
-log_info "Preloading models (this may take a few minutes)..."
-python preload_models.py
-
-# Create a GPU-optimized start script
+# Create a simple start script for GPU
 log_info "Creating GPU-optimized start script..."
 cat > start_gpu.js << EOF
 import { spawn } from 'child_process';
@@ -278,6 +179,9 @@ function startProcess(command, args, name, options = {}) {
 // Set environment variables for GPU optimization
 process.env.HF_HOME = join(__dirname, '.cache/huggingface');
 process.env.TORCH_HOME = join(__dirname, '.cache/torch');
+process.env.PYTORCH_JIT = '0';
+process.env.PYTORCH_DISABLE_JIT_PROFILING = '1';
+process.env.CUDA_VISIBLE_DEVICES = '0';
 
 // Function to handle cleanup
 function cleanup() {
@@ -287,10 +191,9 @@ function cleanup() {
   process.exit(0);
 }
 
-// Start the Flask backend with GPU optimization
+// Start the Flask backend
 const backendEnv = Object.assign({}, process.env, {
-  CUDA_VISIBLE_DEVICES: '0',  // Use the first GPU
-  PYTHONUNBUFFERED: '1'       // Unbuffered Python output
+  PYTHONUNBUFFERED: '1'
 });
 
 const backendProcess = startProcess('python', ['run.py'], 'Flask Backend', {
@@ -313,62 +216,37 @@ console.log(chalk.green('Frontend: http://localhost:3000'));
 console.log(chalk.yellow('Press Ctrl+C to stop'));
 EOF
 
+# Create a custom terminal launcher for the virtual environment
+log_info "Creating terminal launcher..."
+cat > gpu-terminal.sh << EOF
+#!/bin/bash
+# Activate the virtual environment and set GPU environment variables
+source venv/bin/activate
+export PYTORCH_JIT=0
+export PYTORCH_DISABLE_JIT_PROFILING=1
+export HF_HOME=\$(pwd)/.cache/huggingface
+export TORCH_HOME=\$(pwd)/.cache/torch
+
+# Print environment information
+echo "=== TransHLA GPU Environment ==="
+echo "Python: \$(python --version)"
+echo "PyTorch: \$(python -c 'import torch; print(torch.__version__)')"
+echo "CUDA Available: \$(python -c 'import torch; print(torch.cuda.is_available())')"
+if python -c 'import torch; exit(0 if torch.cuda.is_available() else 1)' 2>/dev/null; then
+  echo "CUDA Version: \$(python -c 'import torch; print(torch.version.cuda)')"
+  echo "GPU Device: \$(python -c 'import torch; print(torch.cuda.get_device_name(0))')"
+fi
+echo "================================"
+
+# Start an interactive shell
+exec \$SHELL
+EOF
+chmod +x gpu-terminal.sh
+
 log_success "GPU setup complete!"
 log_info "You can now run the application with: node start_gpu.js"
-log_info "For optimal performance, the models have been preloaded into GPU memory."
+log_info "Or start a terminal with the correct environment: ./gpu-terminal.sh"
 
 # Show GPU status
 log_info "Current GPU status:"
-nvidia-smi
-
-# Create a circular import fix patch
-log_info "Creating circular import fix patch..."
-cat > circular_import_fix.py << EOF
-#!/usr/bin/env python3
-"""
-This script fixes the circular import issue in torchvision.
-Run this before loading the models if you encounter the error:
-'partially initialized module 'torchvision' has no attribute 'extension''
-"""
-import sys
-import os
-import importlib
-
-def apply_patch():
-    # First, try to fix the sys.modules cache
-    if 'torchvision' in sys.modules:
-        # Remove the problematic module
-        print("Removing torchvision from sys.modules cache")
-        del sys.modules['torchvision']
-    
-    # Try to preload torchvision components in the correct order
-    try:
-        print("Preloading torchvision components...")
-        import torch
-        import torchvision.extension
-        import torchvision.io
-        import torchvision.models
-        import torchvision.ops
-        import torchvision.transforms
-        import torchvision.utils
-        print("Torchvision components preloaded successfully!")
-        return True
-    except Exception as e:
-        print(f"Error during preloading: {str(e)}")
-        return False
-
-def main():
-    print("Applying patch for torchvision circular import issue...")
-    success = apply_patch()
-    if success:
-        print("Patch applied successfully!")
-    else:
-        print("Patch application failed.")
-        print("Alternative solution: reinstall torchvision with:")
-        print("pip uninstall -y torchvision")
-        print("pip install torchvision==0.15.2")
-
-if __name__ == "__main__":
-    main()
-EOF
-chmod +x circular_import_fix.py 
+nvidia-smi 

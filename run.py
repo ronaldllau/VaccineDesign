@@ -1,22 +1,14 @@
-# Apply PyTorch JIT fixes to avoid 'undefined symbol' errors
+# Apply PyTorch JIT fixes to avoid potential runtime errors
 import os
 import sys
+import logging
 
-# Disable JIT profiling to avoid undefined symbol errors
+# Configure environment variables
 os.environ['PYTORCH_JIT'] = '0'
 os.environ['PYTORCH_DISABLE_JIT_PROFILING'] = '1'
 
-# Check if fix module exists and import it
-try:
-    from fix_torch_jit import apply_fix
-    apply_fix()
-except ImportError:
-    # Apply basic fixes manually
-    print("JIT fix module not found, applying basic fixes")
-
-# Import the Flask app after fixes
+# Import the Flask app
 from app.app import app
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
