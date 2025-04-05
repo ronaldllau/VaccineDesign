@@ -126,6 +126,7 @@ Jinja2==3.1.2
 # Data science and ML packages
 pandas>=2.0.0
 scikit-learn>=1.0.0
+transformers>=4.30.0
 
 # Visualization
 matplotlib>=3.5.0
