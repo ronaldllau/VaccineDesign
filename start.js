@@ -8,6 +8,7 @@ const runningProcesses = [];
 
 // Configuration
 const backendPort = process.env.FLASK_PORT || 8080;
+const backendHost = process.env.API_HOST || 'localhost';
 
 // Function to handle process termination
 function cleanup() {
@@ -27,20 +28,28 @@ function cleanup() {
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 
+// Prepare environment for child processes
+const childEnv = {
+  ...process.env,
+  FLASK_PORT: backendPort.toString(),
+  API_HOST: backendHost
+};
+
 // Start Frontend Server (Vite)
 console.log(chalk.green('Starting Frontend...'));
 const frontendProcess = spawn('npm', ['run', 'dev'], { 
   stdio: 'pipe',
-  shell: true
+  shell: true,
+  env: childEnv
 });
 runningProcesses.push(frontendProcess);
 
 // Start Backend Server (Flask)
-console.log(chalk.green(`Starting Backend on port ${backendPort}...`));
+console.log(chalk.green(`Starting Backend on ${backendHost}:${backendPort}...`));
 const backendProcess = spawn('python', ['run.py', `--port=${backendPort}`], { 
   stdio: 'pipe',
   shell: true,
-  env: {...process.env, FLASK_PORT: backendPort.toString()}
+  env: childEnv
 });
 runningProcesses.push(backendProcess);
 
@@ -71,6 +80,6 @@ backendProcess.stderr.on('data', (data) => {
 });
 
 console.log(chalk.green('Both servers are running...'));
-console.log(chalk.blue('Frontend server typically runs on http://localhost:5173'));
-console.log(chalk.green(`Backend server runs on http://localhost:${backendPort}`));
+console.log(chalk.blue(`Frontend server available at http://${backendHost === 'localhost' ? 'localhost' : backendHost}:5173`));
+console.log(chalk.green(`Backend server available at http://${backendHost}:${backendPort}`));
 console.log(chalk.yellow('Press Ctrl+C to stop all servers')); 

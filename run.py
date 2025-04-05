@@ -20,8 +20,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Start the TransHLA Flask application')
     parser.add_argument('--port', type=int, default=int(os.environ.get('FLASK_PORT', 8080)),
                         help='Port to run the server on (default: 8080)')
+    parser.add_argument('--host', type=str, default=os.environ.get('FLASK_HOST', '0.0.0.0'),
+                        help='Host interface to listen on (default: 0.0.0.0 - all interfaces)')
     args = parser.parse_args()
     port = args.port
+    host = args.host
 
     logger.info("Starting Flask application...")
     try:
@@ -32,8 +35,8 @@ if __name__ == '__main__':
             logger.info(f"Created static directory at {static_dir}")
 
         # Use host='0.0.0.0' to make the app accessible from outside the container
-        logger.info(f"Starting server on port {port}...")
-        app.run(debug=False, host='0.0.0.0', port=port)
+        logger.info(f"Starting server on {host}:{port}...")
+        app.run(debug=False, host=host, port=port)
     except Exception as e:
         logger.error(f"Failed to start Flask application: {str(e)}")
         raise 
