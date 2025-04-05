@@ -6,6 +6,9 @@ import chalk from 'chalk';
 // Track running processes
 const runningProcesses = [];
 
+// Configuration
+const backendPort = process.env.FLASK_PORT || 8080;
+
 // Function to handle process termination
 function cleanup() {
   console.log(chalk.yellow('\nShutting down servers...'));
@@ -33,10 +36,11 @@ const frontendProcess = spawn('npm', ['run', 'dev'], {
 runningProcesses.push(frontendProcess);
 
 // Start Backend Server (Flask)
-console.log(chalk.green('Starting Backend...'));
-const backendProcess = spawn('python', ['run.py'], { 
+console.log(chalk.green(`Starting Backend on port ${backendPort}...`));
+const backendProcess = spawn('python', ['run.py', `--port=${backendPort}`], { 
   stdio: 'pipe',
-  shell: true
+  shell: true,
+  env: {...process.env, FLASK_PORT: backendPort.toString()}
 });
 runningProcesses.push(backendProcess);
 
@@ -68,5 +72,5 @@ backendProcess.stderr.on('data', (data) => {
 
 console.log(chalk.green('Both servers are running...'));
 console.log(chalk.blue('Frontend server typically runs on http://localhost:5173'));
-console.log(chalk.green('Backend server runs on http://localhost:8080'));
+console.log(chalk.green(`Backend server runs on http://localhost:${backendPort}`));
 console.log(chalk.yellow('Press Ctrl+C to stop all servers')); 
