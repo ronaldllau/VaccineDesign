@@ -217,6 +217,8 @@ const PredictorForm = ({ onPredictionComplete, isLoading, setIsLoading }) => {
       // For sliding window, only show warning if sequence is too short for both classes
       if (peptideLength < 8) {
         setLengthWarning('This sequence is too short to generate any valid peptides. Minimum required length is 8 amino acids.')
+      } else if (peptideLength > 1000) {
+        setLengthWarning('This sequence is too long for sliding window analysis. Maximum allowed length is 1000 amino acids. Please use a shorter sequence or select a specific region of interest.')
       } else {
         setLengthWarning('')
       }
@@ -225,6 +227,8 @@ const PredictorForm = ({ onPredictionComplete, isLoading, setIsLoading }) => {
 
   const handleModeChange = (value) => {
     setValue('mode', value);
+    // Re-check length warnings when mode changes
+    setTimeout(() => checkPeptideLength(), 50);
   }
 
   const handleClassChange = (value) => {
@@ -260,6 +264,12 @@ const PredictorForm = ({ onPredictionComplete, isLoading, setIsLoading }) => {
         message: lengthWarning,
         color: 'orange'
       });
+      // Don't submit if we have certain critical warnings
+      if (lengthWarning.includes('too short') || 
+          lengthWarning.includes('too long') || 
+          (data.mode === 'sliding' && peptideSeq.length > 1000)) {
+        return;
+      }
     }
     
     // Validate peptide length for single peptide mode

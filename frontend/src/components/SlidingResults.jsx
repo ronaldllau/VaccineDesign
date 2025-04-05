@@ -467,14 +467,14 @@ const SlidingResults = ({ results }) => {
 
         viewerRef.current.addModel(structure, "pdb");
         
-        // Change from spectrum coloring to a single light gray color for better highlighting contrast
+        // Revert back to spectrum coloring for positional context
         viewerRef.current.setStyle({}, { 
-          cartoon: { color: '#CCCCCC' } 
+          cartoon: { color: 'spectrum' } 
         });
         
         viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
           opacity: 0.6,
-          color: '#DDDDDD'  // Light gray surface color
+          color: 'white'  // Keep surface white for contrast
         });
         
         viewerRef.current.zoomTo();
@@ -498,23 +498,26 @@ const SlidingResults = ({ results }) => {
       
       const displayIndex = resIndex + 1
       
+      // Enhanced highlighting with more obvious color and thicker cartoon
       viewerRef.current.setStyle({resi: displayIndex}, {
-        cartoon: { color: '#FF9500', thickness: 0.8 },
-        stick: { radius: 0.2, color: '#FF9500' }
+        cartoon: { color: '#FF00FF', thickness: 1.2 },  // Bright magenta, thicker cartoon
+        stick: { radius: 0.3, color: '#FF00FF' }  // Thicker sticks with same color
       })
       
+      // Add a more vibrant and visible surface with higher opacity
       viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
-        opacity: 0.4,
-        color: '#FF9500',
+        opacity: 0.5,  // Higher opacity
+        color: '#FF00FF',  // Bright magenta
         singleSurface: true
       }, {resi: displayIndex})
       
+      // Add a larger wireframe surface for an outline effect
       viewerRef.current.addSurface($3Dmol.SurfaceType.SAS, {
         opacity: 0.8,
         color: '#333333',
         singleSurface: true,
         wireframe: true,
-        linewidth: 2.0
+        linewidth: 3.0  // Thicker wireframe
       }, {resi: displayIndex})
       
       viewerRef.current.render()
@@ -530,12 +533,12 @@ const SlidingResults = ({ results }) => {
     try {
       viewerRef.current.removeAllSurfaces()
       
-      // Reset to single color instead of spectrum
-      viewerRef.current.setStyle({}, { cartoon: { color: '#CCCCCC' } })
+      // Revert to spectrum coloring
+      viewerRef.current.setStyle({}, { cartoon: { color: 'spectrum' } })
       
       viewerRef.current.addSurface($3Dmol.SurfaceType.VDW, {
         opacity: 0.6,
-        color: '#DDDDDD'
+        color: 'white'
       })
       
       viewerRef.current.render()
@@ -847,34 +850,38 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Density
             </div>
-            <div className="chart-container" style={{ height: '220px', backgroundColor: 'white', borderRadius: '0.375rem', padding: '0.75rem', border: '1px solid #DCE8E0' }}>
+            <div className="chart-container" style={{ 
+              height: '300px', 
+              backgroundColor: 'white', 
+              borderRadius: '0.375rem', 
+              padding: '0.75rem', 
+              border: '1px solid #DCE8E0' 
+            }}>
               <canvas ref={densityChartRef}></canvas>
             </div>
           </div>
           <div className="col-md-6" style={{ padding: '0 12px' }}>
-            <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-              Epitope Distribution
-            </div>
-            <div className="chart-container" style={{ 
-              height: '220px', 
-              backgroundColor: 'white', 
-              borderRadius: '0.375rem', 
-              padding: '0.75rem', 
-              border: '1px solid #DCE8E0',
-              position: 'relative'
+            <div className="chart-title" style={{ 
+              color: '#33523E', 
+              fontWeight: 500, 
+              textTransform: 'uppercase', 
+              fontSize: '0.9rem', 
+              letterSpacing: '0.05em', 
+              marginBottom: '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
             }}>
+              <span>Epitope Distribution</span>
               <div style={{ 
-                position: 'absolute', 
-                top: '6px', 
-                right: '10px', 
-                zIndex: 10,
                 display: 'flex',
                 gap: '8px',
                 alignItems: 'center',
                 background: 'rgba(255, 255, 255, 0.9)',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                fontSize: '0.75rem'
+                fontSize: '0.75rem',
+                marginLeft: 'auto'
               }}>
                 <div className="d-flex align-items-center">
                   <span style={{ marginRight: '4px', color: '#555' }}>X:</span>
@@ -929,6 +936,15 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                   </Form.Select>
                 </div>
               </div>
+            </div>
+            <div className="chart-container" style={{ 
+              height: '300px', 
+              backgroundColor: 'white', 
+              borderRadius: '0.375rem', 
+              padding: '1.5rem 0.75rem 0.75rem 0.75rem', 
+              border: '1px solid #DCE8E0',
+              position: 'relative'
+            }}>
               <canvas ref={distributionChartRef}></canvas>
             </div>
           </div>

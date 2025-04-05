@@ -210,6 +210,13 @@ def predict():
             
             # Sliding window mode
             else:
+                # Check sequence length for sliding window mode
+                MAX_SLIDING_WINDOW_LENGTH = 1000  # Set a reasonable maximum length
+                if len(sequence) > MAX_SLIDING_WINDOW_LENGTH:
+                    return jsonify({
+                        "error": f"Sequence too long for sliding window analysis. Maximum allowed length is {MAX_SLIDING_WINDOW_LENGTH} amino acids. Please use a shorter sequence or select a specific region of interest."
+                    }), 400
+                
                 # Generate cache key, including window size if used
                 cache_key = f"sliding_{sequence}_{hla_class}_{window_size if window_size else 'all'}"
                 
