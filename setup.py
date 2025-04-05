@@ -12,6 +12,7 @@ REQUIRED_PACKAGES = [
     "werkzeug==2.2.3",
     "flask-cors==3.0.10",
     "pandas>=2.0.0",
+    "scikit-learn>=1.0.0",
     "transformers>=4.30.0",
     "requests>=2.25.0",
 ]
