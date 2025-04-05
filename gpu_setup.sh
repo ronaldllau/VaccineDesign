@@ -124,9 +124,21 @@ import torch
 # Add app directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
+# Get project root directory
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# Set cache directories with relative paths
+CACHE_DIR = os.path.join(PROJECT_ROOT, '.cache')
+HF_CACHE_DIR = os.path.join(CACHE_DIR, 'huggingface')
+TORCH_CACHE_DIR = os.path.join(CACHE_DIR, 'torch')
+
 # Set environment variables
-os.environ['HF_HOME'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.cache/huggingface')
-os.environ['TORCH_HOME'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.cache/torch')
+os.environ['HF_HOME'] = HF_CACHE_DIR
+os.environ['TORCH_HOME'] = TORCH_CACHE_DIR
+
+print(f"Project Root: {PROJECT_ROOT}")
+print(f"Cache Directory: {CACHE_DIR}")
+print(f"HF Cache: {HF_CACHE_DIR}")
 
 print("Preloading models to cache...")
 start_time = time.time()

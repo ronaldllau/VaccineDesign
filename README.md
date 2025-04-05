@@ -10,6 +10,7 @@ A web application that predicts whether a peptide will be recognized by HLA as a
 - Visualize prediction scores with interactive charts
 - Input validation for proper peptide sequences
 - Responsive design for desktop and mobile
+- GPU acceleration support for faster predictions with large sequences
 
 ## How It Works
 
@@ -20,13 +21,12 @@ This application uses [TransHLA](https://github.com/SkywalkerLuke/TransHLA), a h
 
 ## Requirements
 
-- Python 3.9+
-- Flask
-- PyTorch
-- Transformers
+- Python 3.8+ (3.9 recommended)
+- Node.js 16+ (for frontend and start scripts)
+- PyTorch (CPU or GPU version)
+- Flask and related packages
+- Transformers library
 - fair-esm
-- pandas
-- numpy
 
 ## Quick Start (Recommended)
 
@@ -45,9 +45,40 @@ chmod +x setup.sh
 node start.js
 ```
 
-## GitHub Codespaces (Cloud Development)
+## Environment-Specific Setup
 
-This project is configured to work with GitHub Codespaces, which provides a powerful cloud-based development environment:
+### Standard CPU Environment
+
+Follow the Quick Start instructions above - the `setup.sh` script will automatically detect your environment and install the appropriate dependencies.
+
+### GPU Environment (NVIDIA)
+
+For environments with NVIDIA GPUs (cloud VMs, workstations with NVIDIA cards):
+
+```bash
+# Clone the repository
+git clone https://github.com/ronaldllau/VaccineDesign.git
+cd VaccineDesign
+
+# Make sure the GPU setup script is executable
+chmod +x gpu_setup.sh
+
+# Run the GPU-optimized setup script
+./gpu_setup.sh
+
+# Start the application with GPU acceleration
+node start_gpu.js
+```
+
+The GPU setup script will:
+1. Verify NVIDIA drivers are installed
+2. Install PyTorch with CUDA support
+3. Configure the environment for optimal GPU usage
+4. Preload models to ensure faster predictions
+
+### GitHub Codespaces (Cloud Development)
+
+This project is configured to work with GitHub Codespaces, which provides a development environment in the cloud:
 
 1. Navigate to the repository on GitHub
 2. Click the green "Code" button
@@ -65,7 +96,28 @@ This project is configured to work with GitHub Codespaces, which provides a powe
 
 **Note:** The first time you run the application, it will download large model files (~1.5GB) which may take several minutes.
 
-## Local Development Setup (Advanced Users)
+### Google Cloud / AWS / Azure (With GPU)
+
+For cloud VMs with GPU:
+
+1. Create a VM instance with an NVIDIA GPU
+   - For Google Cloud: Use an N1 or T4 instance with NVIDIA Tesla T4 GPU
+   - For AWS: Use a p3 or g4dn instance
+   - For Azure: Use an NC or NCv3 instance
+
+2. Install NVIDIA drivers if not pre-installed:
+   ```bash
+   # For Ubuntu 22.04 (commands may vary based on OS)
+   curl -O https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+   sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+   sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+   sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+   sudo apt-get update && sudo apt-get -y install cuda-drivers
+   ```
+
+3. Follow the GPU environment setup above
+
+### Local Development Setup (Manual Configuration)
 
 If you prefer to set up the environment manually:
 
@@ -84,7 +136,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 3. Install required packages:
 ```
 pip install -e .  # Installs from setup.py
-# Alternatively: pip install -r requirements.txt
+pip install fair-esm  # Install fair-esm separately
 ```
 
 4. Install Node.js dependencies:
@@ -124,11 +176,11 @@ node start.js
 
 Docker is an alternative way to run this application in production as it handles all dependencies and properly configures the environment.
 
-### Quick Start
+### Standard Docker Deployment
 
 1. Build the Docker image:
 ```
-docker build -t vaccine-design .
+docker build -t transhla-predictor .
 ```
 
 2. Create a persistent volume for model caching:
@@ -138,16 +190,35 @@ docker volume create model_cache
 
 3. Run the container with the volume mounted:
 ```
-docker run -v model_cache:/app/.cache -p 8080:8080 vaccine-design
+docker run -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
 ```
 
 4. Access the application at http://localhost:8080
+
+### NVIDIA Docker (GPU Support)
+
+For Docker with GPU support:
+
+1. Install the NVIDIA Docker runtime:
+```
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+```
+
+2. Build the image as above, then run with GPU support:
+```
+docker run --gpus all -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
+```
 
 ### Important Notes
 
 - **First Run**: The first time you run the container, it will download large model files (~1.5GB) which may take several minutes.
 - **Memory Requirements**: This application requires at least 4GB of memory to load the models. For Docker Desktop users, ensure you allocate sufficient memory in the Resources settings.
 - **Model Caching**: Using a Docker volume (`model_cache`) ensures model files are downloaded only once and reused in subsequent container runs.
+- **GPU Memory**: When using GPU acceleration, ensure you have at least 4GB of GPU memory available.
 
 ## AWS ECS Deployment
 
@@ -156,8 +227,8 @@ For production deployment to AWS Elastic Container Service (ECS), follow these s
 1. Build and push the Docker image to Amazon ECR:
 ```
 aws ecr get-login-password --region your-region | docker login --username AWS --password-stdin your-account-id.dkr.ecr.your-region.amazonaws.com
-docker tag vaccine-design:latest your-account-id.dkr.ecr.your-region.amazonaws.com/vaccine-design:latest
-docker push your-account-id.dkr.ecr.your-region.amazonaws.com/vaccine-design:latest
+docker tag transhla-predictor:latest your-account-id.dkr.ecr.your-region.amazonaws.com/transhla-predictor:latest
+docker push your-account-id.dkr.ecr.your-region.amazonaws.com/transhla-predictor:latest
 ```
 
 2. Set up an EFS volume for model caching. In your ECS task definition, include:
@@ -185,7 +256,7 @@ docker push your-account-id.dkr.ecr.your-region.amazonaws.com/vaccine-design:lat
 }
 ```
 
-3. Deploy the task definition as a service behind a load balancer. See [aws-deployment-guide.md](aws-deployment-guide.md) for detailed instructions.
+3. For GPU support on ECS, use p3 or g4 instances and add the appropriate flags to your task definition.
 
 ## Usage
 
@@ -209,13 +280,33 @@ docker push your-account-id.dkr.ecr.your-region.amazonaws.com/vaccine-design:lat
 - HLA Class I: `YANSVFNIC`
 - HLA Class II: `LGLWLSVGALDFTLS`
 
+## Processing Large Sequences
+
+When using Sliding Window mode, you can process larger protein sequences:
+- CPU environments: Up to 1,000 amino acids
+- GPU environments: Up to 3,000 amino acids (depends on available memory)
+
+For very large sequences, consider:
+1. Using the GPU-accelerated setup
+2. Breaking the sequence into chunks for sequential processing
+
 ## Troubleshooting
 
 - **ESM Module Not Found**: If you get an error about missing "esm" module, run: `pip install fair-esm`
 - **Container crashes on startup**: Ensure your Docker engine has enough memory allocated (minimum 4GB recommended)
 - **Slow first prediction**: The first prediction request triggers model loading, which may take 1-2 minutes
 - **"No valid peptides" error**: Check that your peptide contains only valid amino acid letters (ACDEFGHIKLMNPQRSTVWY)
-- **CORS issues in development**: When running with `node start.js`, the frontend and backend are on different ports, which requires proper CORS configuration. If you encounter CORS errors, ensure you're accessing the application through the frontend URL (http://localhost:5173) and not directly via the backend URL.
+- **CUDA errors**: If you encounter CUDA-related errors, ensure your GPU drivers are compatible with the installed PyTorch version
+- **Permission errors with cache directories**: The application will attempt to use temporary directories if it cannot create the regular cache directories
+
+### Environment-Specific Issues
+
+#### GPU Setup
+- **"nvidia-smi not found"**: NVIDIA drivers are not installed or not in PATH
+- **CUDA version mismatch**: Ensure the installed CUDA version is compatible with your PyTorch version
+
+#### Codespaces
+- **Port forwarding issues**: Check the "PORTS" tab to ensure proper port forwarding is configured
 
 ## License
 
