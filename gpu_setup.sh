@@ -71,9 +71,9 @@ if command -v conda &> /dev/null; then
   eval "$(conda shell.bash hook)"
   conda activate transhla
   
-  # Install PyTorch with CUDA
+  # Install PyTorch with CUDA - use specific compatible versions
   log_info "Installing PyTorch with CUDA support..."
-  conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
+  conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia -y
   
   log_success "PyTorch with CUDA support installed!"
 else
@@ -83,9 +83,9 @@ else
   python -m venv venv
   source venv/bin/activate
   
-  # Install PyTorch with CUDA support
+  # Install PyTorch with CUDA support - use specific compatible versions
   log_info "Installing PyTorch with CUDA support via pip..."
-  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+  pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
 fi
 
 # Install dependencies
@@ -139,6 +139,14 @@ os.environ['TORCH_HOME'] = TORCH_CACHE_DIR
 print(f"Project Root: {PROJECT_ROOT}")
 print(f"Cache Directory: {CACHE_DIR}")
 print(f"HF Cache: {HF_CACHE_DIR}")
+
+# Apply circular import fix
+try:
+    print("Applying circular import fix before loading models...")
+    from circular_import_fix import apply_patch
+    apply_patch()
+except ImportError:
+    print("Circular import fix not found, continuing without it")
 
 print("Preloading models to cache...")
 start_time = time.time()
@@ -246,4 +254,56 @@ log_info "For optimal performance, the models have been preloaded into GPU memor
 
 # Show GPU status
 log_info "Current GPU status:"
-nvidia-smi 
+nvidia-smi
+
+# Create a circular import fix patch
+log_info "Creating circular import fix patch..."
+cat > circular_import_fix.py << EOF
+#!/usr/bin/env python3
+"""
+This script fixes the circular import issue in torchvision.
+Run this before loading the models if you encounter the error:
+'partially initialized module 'torchvision' has no attribute 'extension''
+"""
+import sys
+import os
+import importlib
+
+def apply_patch():
+    # First, try to fix the sys.modules cache
+    if 'torchvision' in sys.modules:
+        # Remove the problematic module
+        print("Removing torchvision from sys.modules cache")
+        del sys.modules['torchvision']
+    
+    # Try to preload torchvision components in the correct order
+    try:
+        print("Preloading torchvision components...")
+        import torch
+        import torchvision.extension
+        import torchvision.io
+        import torchvision.models
+        import torchvision.ops
+        import torchvision.transforms
+        import torchvision.utils
+        print("Torchvision components preloaded successfully!")
+        return True
+    except Exception as e:
+        print(f"Error during preloading: {str(e)}")
+        return False
+
+def main():
+    print("Applying patch for torchvision circular import issue...")
+    success = apply_patch()
+    if success:
+        print("Patch applied successfully!")
+    else:
+        print("Patch application failed.")
+        print("Alternative solution: reinstall torchvision with:")
+        print("pip uninstall -y torchvision")
+        print("pip install torchvision==0.15.2")
+
+if __name__ == "__main__":
+    main()
+EOF
+chmod +x circular_import_fix.py 

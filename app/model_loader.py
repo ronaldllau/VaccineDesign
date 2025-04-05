@@ -3,14 +3,24 @@ import traceback
 import os
 import sys
 
-from transformers import AutoTokenizer, AutoModel
-
 # Get the project root directory (parent of the app directory)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Model loader using device: {device}")
+
+# Apply circular import fix if the patch file exists
+try:
+    sys.path.append(PROJECT_ROOT)
+    from circular_import_fix import apply_patch
+    apply_patch()
+    print("Applied circular import fix")
+except ImportError:
+    print("Circular import fix not found, continuing without it")
+
+# Now import transformers after the fix
+from transformers import AutoTokenizer, AutoModel
 
 # Set cache directory paths
 CACHE_DIR = os.path.join(PROJECT_ROOT, '.cache')

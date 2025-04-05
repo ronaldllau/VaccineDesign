@@ -23,6 +23,7 @@ REQUIRED_PACKAGES = [
     
     # ML/DL frameworks
     "transformers>=4.30.0",
+    "torchvision==0.15.2",  # Must match the PyTorch version
     
     # Common utilities
     "requests>=2.25.0",
@@ -37,7 +38,8 @@ if py_major == 3 and py_minor >= 10:
 else:
     REQUIRED_PACKAGES.append("numpy>=1.21.0,<1.26.0")
 
-# PyTorch is handled separately in setup.sh to manage GPU vs CPU variants
+# Add PyTorch with specific version to avoid compatibility issues
+REQUIRED_PACKAGES.append("torch==2.0.1")  # PyTorch is handled separately in setup.sh for GPU vs CPU variants
 
 # Get system information for diagnostic info
 system_info = f"Python {sys.version.split()[0]} on {platform.system()} {platform.machine()}"

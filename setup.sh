@@ -145,10 +145,14 @@ fi
 # Add PyTorch based on GPU availability
 if [ "$HAS_GPU" = true ]; then
   echo "# PyTorch with GPU support" >> requirements.temp.txt
-  echo "torch>=2.0.0" >> requirements.temp.txt
+  echo "torch==2.0.1" >> requirements.temp.txt
+  echo "torchvision==0.15.2" >> requirements.temp.txt
+  echo "torchaudio==2.0.2" >> requirements.temp.txt
 else
   echo "# PyTorch CPU only" >> requirements.temp.txt
-  echo "torch>=2.0.0" >> requirements.temp.txt
+  echo "torch==2.0.1" >> requirements.temp.txt
+  echo "torchvision==0.15.2" >> requirements.temp.txt
+  echo "torchaudio==2.0.2" >> requirements.temp.txt
 fi
 
 # Add transformers and other packages
