@@ -41,9 +41,14 @@ cd VaccineDesign
 chmod +x setup.sh
 ./setup.sh
 
+# Activate the virtual environment created by the setup script
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Start both the frontend and backend with a single command
 node start.js
 ```
+
+> **IMPORTANT**: You must activate the virtual environment with `source venv/bin/activate` before running the application, as all Python dependencies are installed in this isolated environment.
 
 ## Environment-Specific Setup
 
@@ -66,6 +71,9 @@ chmod +x gpu_setup.sh
 # Run the GPU-optimized setup script
 ./gpu_setup.sh
 
+# Activate the virtual environment created by the setup script
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Start the application with GPU acceleration
 node start_gpu.js
 ```
@@ -74,7 +82,7 @@ The GPU setup script will:
 1. Verify NVIDIA drivers are installed
 2. Install PyTorch with CUDA support
 3. Configure the environment for optimal GPU usage
-4. Preload models to ensure faster predictions
+4. Set up the virtual environment with all dependencies
 
 ### GitHub Codespaces (Cloud Development)
 
@@ -88,6 +96,9 @@ This project is configured to work with GitHub Codespaces, which provides a deve
    ```bash
    # Install all dependencies
    ./setup.sh
+   
+   # Activate the virtual environment
+   source venv/bin/activate
    
    # Start the application
    node start.js
@@ -115,56 +126,63 @@ For cloud VMs with GPU:
    sudo apt-get update && sudo apt-get -y install cuda-drivers
    ```
 
-3. Follow the GPU environment setup above
+3. Follow the GPU environment setup above, making sure to activate the virtual environment after running the setup script.
 
 ### Local Development Setup (Manual Configuration)
 
 If you prefer to set up the environment manually:
 
 1. Clone this repository:
-```
+```bash
 git clone https://github.com/ronaldllau/VaccineDesign.git
 cd VaccineDesign
 ```
 
 2. Create a virtual environment and activate it:
-```
+```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. Install required packages:
-```
+```bash
 pip install -e .  # Installs from setup.py
 pip install fair-esm  # Install fair-esm separately
 ```
 
 4. Install Node.js dependencies:
-```
+```bash
 npm install
+cd frontend
+npm install
+cd ..
 ```
 
 5. Create necessary cache directories:
-```
+```bash
 mkdir -p .cache/huggingface
 mkdir -p .cache/torch/hub/checkpoints
 mkdir -p models
 ```
 
 6. Start both servers at once with the convenience script:
-```
+```bash
+# Make sure the virtual environment is still activated
 node start.js
 ```
 
    Or start the servers individually:
 
    a. Start the Flask backend:
-   ```
+   ```bash
+   # Make sure the virtual environment is activated
    python run.py
    ```
 
    b. In a separate terminal, start the frontend development server:
-   ```
+   ```bash
+   # No need for virtual environment for this step
+   cd frontend
    npm run dev
    ```
 
@@ -174,22 +192,22 @@ node start.js
 
 ## Docker Deployment
 
-Docker is an alternative way to run this application in production as it handles all dependencies and properly configures the environment.
+Docker is an alternative way to run this application in production as it handles all dependencies and properly configures the environment. Using Docker eliminates the need for manually activating virtual environments.
 
 ### Standard Docker Deployment
 
 1. Build the Docker image:
-```
+```bash
 docker build -t transhla-predictor .
 ```
 
 2. Create a persistent volume for model caching:
-```
+```bash
 docker volume create model_cache
 ```
 
 3. Run the container with the volume mounted:
-```
+```bash
 docker run -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
 ```
 
@@ -200,7 +218,7 @@ docker run -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
 For Docker with GPU support:
 
 1. Install the NVIDIA Docker runtime:
-```
+```bash
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
@@ -209,7 +227,7 @@ sudo systemctl restart docker
 ```
 
 2. Build the image as above, then run with GPU support:
-```
+```bash
 docker run --gpus all -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
 ```
 
@@ -219,13 +237,14 @@ docker run --gpus all -v model_cache:/app/.cache -p 8080:8080 transhla-predictor
 - **Memory Requirements**: This application requires at least 4GB of memory to load the models. For Docker Desktop users, ensure you allocate sufficient memory in the Resources settings.
 - **Model Caching**: Using a Docker volume (`model_cache`) ensures model files are downloaded only once and reused in subsequent container runs.
 - **GPU Memory**: When using GPU acceleration, ensure you have at least 4GB of GPU memory available.
+- **Environment**: Docker containers include their own isolated environment, so you don't need to worry about virtual environment activation.
 
 ## AWS ECS Deployment
 
 For production deployment to AWS Elastic Container Service (ECS), follow these steps:
 
 1. Build and push the Docker image to Amazon ECR:
-```
+```bash
 aws ecr get-login-password --region your-region | docker login --username AWS --password-stdin your-account-id.dkr.ecr.your-region.amazonaws.com
 docker tag transhla-predictor:latest your-account-id.dkr.ecr.your-region.amazonaws.com/transhla-predictor:latest
 docker push your-account-id.dkr.ecr.your-region.amazonaws.com/transhla-predictor:latest
@@ -292,17 +311,30 @@ For very large sequences, consider:
 
 ## Troubleshooting
 
-- **ESM Module Not Found**: If you get an error about missing "esm" module, run: `pip install fair-esm`
+- **No module named 'torch'**: This error occurs if you're not running in the activated virtual environment. Make sure to run `source venv/bin/activate` before starting the application.
+
+- **ESM Module Not Found**: If you get an error about missing "esm" module, make sure your virtual environment is activated and run: `pip install fair-esm`
+
 - **Container crashes on startup**: Ensure your Docker engine has enough memory allocated (minimum 4GB recommended)
+
 - **Slow first prediction**: The first prediction request triggers model loading, which may take 1-2 minutes
+
 - **"No valid peptides" error**: Check that your peptide contains only valid amino acid letters (ACDEFGHIKLMNPQRSTVWY)
+
 - **CUDA errors**: If you encounter CUDA-related errors, ensure your GPU drivers are compatible with the installed PyTorch version
+
 - **Permission errors with cache directories**: The application will attempt to use temporary directories if it cannot create the regular cache directories
+
+- **Vite not found**: If you get this error, make sure to run `cd frontend && npm install` to install the frontend dependencies
 
 ### Environment-Specific Issues
 
+#### Virtual Environment
+- **Missing dependencies**: If you see "ModuleNotFoundError", you've likely forgotten to activate the virtual environment. Run `source venv/bin/activate` first.
+- **Wrong Python version**: The setup script creates a venv using your system's default Python. Make sure it's Python 3.8+ before running the script.
+
 #### GPU Setup
-- **"nvidia-smi not found"**: NVIDIA drivers are not installed or not in PATH
+- **nvidia-smi not found**: NVIDIA drivers are not installed or not in PATH
 - **CUDA version mismatch**: Ensure the installed CUDA version is compatible with your PyTorch version
 
 #### Codespaces
