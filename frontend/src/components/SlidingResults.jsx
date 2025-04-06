@@ -223,6 +223,14 @@ const SlidingResults = ({ results }) => {
       options: {
         responsive: true,
         maintainAspectRatio: true,
+        layout: {
+          padding: {
+            top: 10,
+            bottom: 10,
+            left: 10,
+            right: 10
+          }
+        },
         plugins: {
           legend: {
             position: 'bottom',
@@ -444,6 +452,7 @@ const SlidingResults = ({ results }) => {
         options: {
           responsive: true,
           maintainAspectRatio: true,
+          aspectRatio: 2, // Wider aspect ratio for the distribution chart
           parsing: {
             xAxisKey: 'x',
             yAxisKey: 'y'
@@ -960,21 +969,23 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
       
       <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
         <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
-          <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
+          <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Density
             </div>
             <div className="chart-container" style={{ 
-              height: '300px', 
+              height: '320px', 
+              width: '100%',
               backgroundColor: 'white', 
               borderRadius: '0.375rem', 
               padding: '0.75rem', 
-              border: '1px solid #DCE8E0' 
+              border: '1px solid #DCE8E0',
+              aspectRatio: '1 / 1'
             }}>
               <canvas ref={densityChartRef}></canvas>
             </div>
           </div>
-          <div className="col-md-6" style={{ padding: '0 12px' }}>
+          <div className="col-md-7" style={{ padding: '0 12px' }}>
             <div className="chart-title" style={{ 
               color: '#33523E', 
               fontWeight: 500, 
@@ -1099,7 +1110,8 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               borderRadius: '0.375rem', 
               padding: '1.5rem 0.75rem 0.75rem 0.75rem', 
               border: '1px solid #DCE8E0',
-              position: 'relative'
+              position: 'relative',
+              width: '100%'
             }}>
               <canvas ref={distributionChartRef}></canvas>
             </div>
