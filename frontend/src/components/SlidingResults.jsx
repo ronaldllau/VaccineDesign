@@ -48,6 +48,11 @@ const SlidingResults = ({ results }) => {
   const [chartXAxis, setChartXAxis] = useState('position')
   const [chartYAxis, setChartYAxis] = useState('probability')
   
+  // Create refs to track current axis values - these update immediately 
+  // without waiting for React's state update cycle
+  const currentXAxisRef = useRef('position')
+  const currentYAxisRef = useRef('probability')
+  
   const [selectedPeptide, setSelectedPeptide] = useState(null);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   
@@ -165,7 +170,10 @@ const SlidingResults = ({ results }) => {
   useEffect(() => {
     if (results && distributionChartRef.current) {
       console.log('Initial creation of distribution chart');
-      createDistributionChart();
+      // Set the initial values in the refs
+      currentXAxisRef.current = chartXAxis;
+      currentYAxisRef.current = chartYAxis;
+      createDistributionChart(chartXAxis, chartYAxis);
     }
   }, [results]);
 
@@ -267,12 +275,24 @@ const SlidingResults = ({ results }) => {
     })
   }
 
-  const createDistributionChart = () => {
+  // Helper function to recreate chart with explicit axis values
+  const recreateChart = (xAxis, yAxis) => {
+    console.log('Recreating chart with explicit values - X:', xAxis, 'Y:', yAxis);
+    
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+      if (distributionChartRef.current) {
+        createDistributionChart(xAxis, yAxis);
+      }
+    }, 0);
+  };
+
+  const createDistributionChart = (xAxis, yAxis) => {
     if (!distributionChartRef.current || !results) return
     
-    // Explicitly get current state values to avoid closure issues
-    const currentXAxis = chartXAxis;
-    const currentYAxis = chartYAxis;
+    // Use provided values or fall back to refs (which are always current)
+    const currentXAxis = xAxis || currentXAxisRef.current;
+    const currentYAxis = yAxis || currentYAxisRef.current;
     
     console.log('Creating distribution chart with:', { 
       xAxis: currentXAxis, 
@@ -951,24 +971,28 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                       
                       // If new X-axis is same as current Y-axis, swap them
                       if (newXAxis === chartYAxis) {
+                        // Keep track of old value for the swap
                         const oldXAxis = chartXAxis;
-                        // Update both states and then redraw
+                        
+                        // Update refs immediately - this happens synchronously
+                        currentXAxisRef.current = newXAxis;
+                        currentYAxisRef.current = oldXAxis;
+                        
+                        // Then update React state
                         setChartXAxis(newXAxis);
                         setChartYAxis(oldXAxis);
                         
-                        // Use a small delay to ensure state is updated
-                        setTimeout(() => {
-                          console.log('Delayed chart update after swap - X:', newXAxis, 'Y:', oldXAxis);
-                          createDistributionChart();
-                        }, 50);
+                        // Create the chart directly with the new values
+                        recreateChart(newXAxis, oldXAxis);
                       } else {
-                        // Just update X axis
+                        // Update ref immediately
+                        currentXAxisRef.current = newXAxis;
+                        
+                        // Update React state
                         setChartXAxis(newXAxis);
-                        // Use a small delay to ensure state is updated
-                        setTimeout(() => {
-                          console.log('Delayed chart update - new X:', newXAxis, 'Y remains:', chartYAxis);
-                          createDistributionChart();
-                        }, 50);
+                        
+                        // Create the chart directly with the new values
+                        recreateChart(newXAxis, currentYAxisRef.current);
                       }
                     }}
                     style={{
@@ -994,24 +1018,28 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                       
                       // If new Y-axis is same as current X-axis, swap them
                       if (newYAxis === chartXAxis) {
+                        // Keep track of old value for the swap
                         const oldYAxis = chartYAxis;
-                        // Update both states and then redraw
+                        
+                        // Update refs immediately - this happens synchronously
+                        currentYAxisRef.current = newYAxis;
+                        currentXAxisRef.current = oldYAxis;
+                        
+                        // Then update React state
                         setChartYAxis(newYAxis);
                         setChartXAxis(oldYAxis);
                         
-                        // Use a small delay to ensure state is updated
-                        setTimeout(() => {
-                          console.log('Delayed chart update after swap - Y:', newYAxis, 'X:', oldYAxis);
-                          createDistributionChart();
-                        }, 50);
+                        // Create the chart directly with the new values
+                        recreateChart(oldYAxis, newYAxis);
                       } else {
-                        // Just update Y axis
+                        // Update ref immediately
+                        currentYAxisRef.current = newYAxis;
+                        
+                        // Update React state
                         setChartYAxis(newYAxis);
-                        // Use a small delay to ensure state is updated
-                        setTimeout(() => {
-                          console.log('Delayed chart update - new Y:', newYAxis, 'X remains:', chartXAxis);
-                          createDistributionChart();
-                        }, 50);
+                        
+                        // Create the chart directly with the new values
+                        recreateChart(currentXAxisRef.current, newYAxis);
                       }
                     }}
                     style={{
