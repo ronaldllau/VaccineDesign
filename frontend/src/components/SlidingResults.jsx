@@ -136,6 +136,7 @@ const SlidingResults = ({ results }) => {
     
     createDensityChart()
     
+    console.log(`Chart axes changed - X: ${chartXAxis}, Y: ${chartYAxis}`)
     createDistributionChart()
     
     if (results.original_sequence) {
@@ -263,25 +264,34 @@ const SlidingResults = ({ results }) => {
   const createDistributionChart = () => {
     if (!distributionChartRef.current || !results) return
     
+    console.log('Creating distribution chart with:', { xAxis: chartXAxis, yAxis: chartYAxis })
+    
     if (distributionChartInstance.current) {
       distributionChartInstance.current.destroy()
     }
     
     const ctx = distributionChartRef.current.getContext('2d')
     
-    const xValues = Array.from(new Set(results.results.map(r => {
+    // Get unique X values and sort them
+    const epitopesOnly = results.results.filter(r => r.is_epitope)
+    const xValues = Array.from(new Set(epitopesOnly.map(r => {
       if (chartXAxis === 'position') return r.position;
       if (chartXAxis === 'length') return r.length;
       return r.probability;
     }))).sort((a, b) => a - b);
     
+    console.log('X Values:', xValues)
+    
+    // For each X value, calculate the corresponding Y value (average if multiple matches)
     const chartData = xValues.map(xValue => {
-      const matchingItems = results.results.filter(r => {
+      // Find all items matching this X value
+      const matchingItems = epitopesOnly.filter(r => {
         if (chartXAxis === 'position') return r.position === xValue;
         if (chartXAxis === 'length') return r.length === xValue;
         return Math.abs(r.probability - xValue) < 0.001;
       });
       
+      // Calculate the average Y value for this X value
       let yValue = 0;
       if (matchingItems.length > 0) {
         yValue = matchingItems.reduce((sum, item) => {
@@ -297,9 +307,16 @@ const SlidingResults = ({ results }) => {
       };
     });
     
+    console.log('Chart Data:', chartData)
+    
+    // Use proper capitalization for axis labels
     const xAxisLabel = chartXAxis.charAt(0).toUpperCase() + chartXAxis.slice(1);
     const yAxisLabel = chartYAxis.charAt(0).toUpperCase() + chartYAxis.slice(1);
+    const chartTitle = `${yAxisLabel} Distribution by ${xAxisLabel}`;
     
+    console.log('Chart Title:', chartTitle)
+    
+    // Create the chart with the correct data and labels
     distributionChartInstance.current = new Chart(ctx, {
       type: 'line',
       data: {
@@ -392,7 +409,7 @@ const SlidingResults = ({ results }) => {
           },
           title: {
             display: true,
-            text: `${yAxisLabel} Distribution by ${xAxisLabel}`,
+            text: chartTitle,
             font: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
               size: 13,
@@ -895,7 +912,12 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                         setChartYAxis(chartXAxis);
                       }
                       setChartXAxis(newXAxis);
-                      setTimeout(() => createDistributionChart(), 50);
+                      // Recreate chart immediately
+                      setTimeout(() => {
+                        if (distributionChartRef.current) {
+                          createDistributionChart();
+                        }
+                      }, 0);
                     }}
                     style={{
                       fontSize: '0.75rem',
@@ -921,7 +943,12 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                         setChartXAxis(chartYAxis);
                       }
                       setChartYAxis(newYAxis);
-                      setTimeout(() => createDistributionChart(), 50);
+                      // Recreate chart immediately
+                      setTimeout(() => {
+                        if (distributionChartRef.current) {
+                          createDistributionChart();
+                        }
+                      }, 0);
                     }}
                     style={{
                       fontSize: '0.75rem',
