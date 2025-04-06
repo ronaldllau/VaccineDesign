@@ -983,15 +983,16 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
-          marginBottom: '1.5rem'
+          marginBottom: '1.5rem',
+          width: '100%',
+          backgroundColor: 'white',
+          borderRadius: '0.375rem',
+          border: '1px solid #DCE8E0',
+          padding: '1.5rem'
         }}>
           <div style={{ 
             width: '350px',
             height: '350px',
-            backgroundColor: 'white',
-            borderRadius: '0.375rem',
-            padding: '0.75rem',
-            border: '1px solid #DCE8E0'
           }}>
             <canvas ref={densityChartRef}></canvas>
           </div>
