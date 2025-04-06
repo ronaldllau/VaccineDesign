@@ -980,9 +980,6 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
         </div>
         <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px', width: '100%' }}>
           <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
-            <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-              Epitope Density
-            </div>
             <div className="chart-container" style={{ 
               height: '320px', 
               width: '100%',
@@ -996,19 +993,13 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
             </div>
           </div>
           <div className="col-md-7" style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', width: '100%' }}>
-            <div className="chart-title" style={{ 
-              color: '#33523E', 
-              fontWeight: 500, 
-              textTransform: 'uppercase', 
-              fontSize: '0.9rem', 
-              letterSpacing: '0.05em', 
-              marginBottom: '0.75rem',
+            <div style={{ 
               display: 'flex',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               alignItems: 'center',
+              marginBottom: '0.75rem',
               width: '100%'
             }}>
-              <span>Epitope Distribution</span>
               <div style={{ 
                 display: 'flex',
                 gap: '8px',
@@ -1016,8 +1007,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                 background: 'rgba(255, 255, 255, 0.9)',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                fontSize: '0.75rem',
-                marginLeft: 'auto'
+                fontSize: '0.75rem'
               }}>
                 <div className="d-flex align-items-center">
                   <span style={{ marginRight: '4px', color: '#555' }}>X:</span>
