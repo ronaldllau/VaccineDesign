@@ -225,10 +225,10 @@ const SlidingResults = ({ results }) => {
         maintainAspectRatio: true,
         layout: {
           padding: {
-            top: 10,
-            bottom: 10,
-            left: 10,
-            right: 10
+            top: 15,
+            bottom: 15,
+            left: 15,
+            right: 15
           }
         },
         plugins: {
@@ -237,11 +237,11 @@ const SlidingResults = ({ results }) => {
             labels: {
               font: {
                 family: 'Helvetica, Inter, system-ui, sans-serif',
-                size: 11
+                size: 12
               },
               color: '#3A424E',
-              boxWidth: 12,
-              padding: 10
+              boxWidth: 15,
+              padding: 15
             }
           },
           tooltip: {
@@ -255,11 +255,11 @@ const SlidingResults = ({ results }) => {
             },
             titleFont: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 13
+              size: 14
             },
             bodyFont: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 12
+              size: 13
             },
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             titleColor: '#33523E',
@@ -272,11 +272,11 @@ const SlidingResults = ({ results }) => {
             text: `HLA Class ${results.hla_class} Epitope Density`,
             font: {
               family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 13,
+              size: 14,
               weight: 500
             },
             color: '#33523E',
-            padding: 10
+            padding: 15
           }
         }
       }
@@ -459,7 +459,7 @@ const SlidingResults = ({ results }) => {
         options: {
           responsive: true,
           maintainAspectRatio: true,
-          aspectRatio: 2.5, // Wider aspect ratio for the distribution chart
+          aspectRatio: 3, // Wider aspect ratio for full-width distribution chart
           parsing: {
             xAxisKey: 'x',
             yAxisKey: 'y'
@@ -978,144 +978,149 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
         <div style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '1rem' }}>
           EPITOPE VISUALIZATION
         </div>
-        <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px', width: '100%' }}>
-          <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
-            <div className="chart-container" style={{ 
-              height: '320px', 
-              width: '100%',
-              backgroundColor: 'white', 
-              borderRadius: '0.375rem', 
-              padding: '0.75rem', 
-              border: '1px solid #DCE8E0',
-              aspectRatio: '1 / 1'
-            }}>
-              <canvas ref={densityChartRef}></canvas>
-            </div>
+        
+        {/* Pie Chart - Centered */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center',
+          marginBottom: '1.5rem'
+        }}>
+          <div style={{ 
+            width: '350px',
+            height: '350px',
+            backgroundColor: 'white',
+            borderRadius: '0.375rem',
+            padding: '0.75rem',
+            border: '1px solid #DCE8E0'
+          }}>
+            <canvas ref={densityChartRef}></canvas>
           </div>
-          <div className="col-md-7" style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', width: '100%' }}>
+        </div>
+        
+        {/* Distribution Chart - Full Width */}
+        <div>
+          <div style={{ 
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: '0.75rem',
+            width: '100%'
+          }}>
             <div style={{ 
               display: 'flex',
-              justifyContent: 'flex-end',
+              gap: '8px',
               alignItems: 'center',
-              marginBottom: '0.75rem',
-              width: '100%'
+              background: 'rgba(255, 255, 255, 0.9)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '0.75rem'
             }}>
-              <div style={{ 
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
-                background: 'rgba(255, 255, 255, 0.9)',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '0.75rem'
-              }}>
-                <div className="d-flex align-items-center">
-                  <span style={{ marginRight: '4px', color: '#555' }}>X:</span>
-                  <Form.Select 
-                    size="sm"
-                    value={chartXAxis}
-                    onChange={(e) => {
-                      const newXAxis = e.target.value;
-                      console.log('X-axis changed to:', newXAxis);
+              <div className="d-flex align-items-center">
+                <span style={{ marginRight: '4px', color: '#555' }}>X:</span>
+                <Form.Select 
+                  size="sm"
+                  value={chartXAxis}
+                  onChange={(e) => {
+                    const newXAxis = e.target.value;
+                    console.log('X-axis changed to:', newXAxis);
+                    
+                    // If new X-axis is same as current Y-axis, swap them
+                    if (newXAxis === chartYAxis) {
+                      // Keep track of old value for the swap
+                      const oldXAxis = chartXAxis;
                       
-                      // If new X-axis is same as current Y-axis, swap them
-                      if (newXAxis === chartYAxis) {
-                        // Keep track of old value for the swap
-                        const oldXAxis = chartXAxis;
-                        
-                        // Update refs immediately - this happens synchronously
-                        currentXAxisRef.current = newXAxis;
-                        currentYAxisRef.current = oldXAxis;
-                        
-                        // Then update React state
-                        setChartXAxis(newXAxis);
-                        setChartYAxis(oldXAxis);
-                        
-                        // Create the chart directly with the new values
-                        recreateChart(newXAxis, oldXAxis);
-                      } else {
-                        // Update ref immediately
-                        currentXAxisRef.current = newXAxis;
-                        
-                        // Update React state
-                        setChartXAxis(newXAxis);
-                        
-                        // Create the chart directly with the new values
-                        recreateChart(newXAxis, currentYAxisRef.current);
-                      }
-                    }}
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 20px 2px 6px',
-                      height: 'auto',
-                      width: 'auto'
-                    }}
-                  >
-                    <option value="position">Position</option>
-                    <option value="length">Length</option>
-                    <option value="probability">Probability</option>
-                  </Form.Select>
-                </div>
-                <div className="d-flex align-items-center">
-                  <span style={{ marginRight: '4px', color: '#555' }}>Y:</span>
-                  <Form.Select
-                    size="sm"
-                    value={chartYAxis}
-                    onChange={(e) => {
-                      const newYAxis = e.target.value;
-                      console.log('Y-axis changed to:', newYAxis);
+                      // Update refs immediately - this happens synchronously
+                      currentXAxisRef.current = newXAxis;
+                      currentYAxisRef.current = oldXAxis;
                       
-                      // If new Y-axis is same as current X-axis, swap them
-                      if (newYAxis === chartXAxis) {
-                        // Keep track of old value for the swap
-                        const oldYAxis = chartYAxis;
-                        
-                        // Update refs immediately - this happens synchronously
-                        currentYAxisRef.current = newYAxis;
-                        currentXAxisRef.current = oldYAxis;
-                        
-                        // Then update React state
-                        setChartYAxis(newYAxis);
-                        setChartXAxis(oldYAxis);
-                        
-                        // Create the chart directly with the new values
-                        recreateChart(oldYAxis, newYAxis);
-                      } else {
-                        // Update ref immediately
-                        currentYAxisRef.current = newYAxis;
-                        
-                        // Update React state
-                        setChartYAxis(newYAxis);
-                        
-                        // Create the chart directly with the new values
-                        recreateChart(currentXAxisRef.current, newYAxis);
-                      }
-                    }}
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 20px 2px 6px',
-                      height: 'auto',
-                      width: 'auto'
-                    }}
-                  >
-                    <option value="position">Position</option>
-                    <option value="length">Length</option>
-                    <option value="probability">Probability</option>
-                  </Form.Select>
-                </div>
+                      // Then update React state
+                      setChartXAxis(newXAxis);
+                      setChartYAxis(oldXAxis);
+                      
+                      // Create the chart directly with the new values
+                      recreateChart(newXAxis, oldXAxis);
+                    } else {
+                      // Update ref immediately
+                      currentXAxisRef.current = newXAxis;
+                      
+                      // Update React state
+                      setChartXAxis(newXAxis);
+                      
+                      // Create the chart directly with the new values
+                      recreateChart(newXAxis, currentYAxisRef.current);
+                    }
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '2px 20px 2px 6px',
+                    height: 'auto',
+                    width: 'auto'
+                  }}
+                >
+                  <option value="position">Position</option>
+                  <option value="length">Length</option>
+                  <option value="probability">Probability</option>
+                </Form.Select>
+              </div>
+              <div className="d-flex align-items-center">
+                <span style={{ marginRight: '4px', color: '#555' }}>Y:</span>
+                <Form.Select
+                  size="sm"
+                  value={chartYAxis}
+                  onChange={(e) => {
+                    const newYAxis = e.target.value;
+                    console.log('Y-axis changed to:', newYAxis);
+                    
+                    // If new Y-axis is same as current X-axis, swap them
+                    if (newYAxis === chartXAxis) {
+                      // Keep track of old value for the swap
+                      const oldYAxis = chartYAxis;
+                      
+                      // Update refs immediately - this happens synchronously
+                      currentYAxisRef.current = newYAxis;
+                      currentXAxisRef.current = oldYAxis;
+                      
+                      // Then update React state
+                      setChartYAxis(newYAxis);
+                      setChartXAxis(oldYAxis);
+                      
+                      // Create the chart directly with the new values
+                      recreateChart(oldYAxis, newYAxis);
+                    } else {
+                      // Update ref immediately
+                      currentYAxisRef.current = newYAxis;
+                      
+                      // Update React state
+                      setChartYAxis(newYAxis);
+                      
+                      // Create the chart directly with the new values
+                      recreateChart(currentXAxisRef.current, newYAxis);
+                    }
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '2px 20px 2px 6px',
+                    height: 'auto',
+                    width: 'auto'
+                  }}
+                >
+                  <option value="position">Position</option>
+                  <option value="length">Length</option>
+                  <option value="probability">Probability</option>
+                </Form.Select>
               </div>
             </div>
-            <div className="chart-container" style={{ 
-              height: '300px', 
-              backgroundColor: 'white', 
-              borderRadius: '0.375rem', 
-              padding: '1.5rem 1.5rem 1rem 1rem', 
-              border: '1px solid #DCE8E0',
-              position: 'relative',
-              width: '100%'
-            }}>
-              <canvas ref={distributionChartRef}></canvas>
-            </div>
+          </div>
+          <div style={{ 
+            height: '350px', 
+            backgroundColor: 'white', 
+            borderRadius: '0.375rem', 
+            padding: '1.5rem 2rem 1.5rem 1.5rem', 
+            border: '1px solid #DCE8E0',
+            position: 'relative',
+            width: '100%'
+          }}>
+            <canvas ref={distributionChartRef}></canvas>
           </div>
         </div>
       </div>
