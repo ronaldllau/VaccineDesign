@@ -974,7 +974,10 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
         </div>
       </div>
       
-      <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+      <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)', marginBottom: '1.5rem' }}>
+        <div style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '1rem' }}>
+          EPITOPE VISUALIZATION
+        </div>
         <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px', width: '100%' }}>
           <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
