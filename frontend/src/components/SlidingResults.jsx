@@ -325,13 +325,12 @@ const SlidingResults = ({ results }) => {
       console.log(`X Values (${currentXAxis}):`, xValues)
       
       // For each X value, calculate the corresponding Y value
-      const chartData = xValues.map(xValue => {
+      let chartData = xValues.map(xValue => {
         // Find all items matching this X value
         const matchingItems = epitopesOnly.filter(r => {
           if (currentXAxis === 'position') return r.position === xValue;
           if (currentXAxis === 'length') return r.length === xValue;
-          // Use a more forgiving comparison for floating point probability values
-          return Math.abs(r.probability - xValue) < 0.00001;
+          return Math.abs(r.probability - xValue) < 0.001;
         });
         
         // Calculate the average Y value for this X value
@@ -350,6 +349,28 @@ const SlidingResults = ({ results }) => {
         };
       });
       
+      // If X axis is probability, add some padding points if needed
+      if (currentXAxis === 'probability') {
+        // Find min probability from actual data
+        const minProb = Math.min(...chartData.map(d => d.x));
+        
+        // Only add padding points if there's a significant gap
+        if (minProb > 0.4) {
+          // Calculate y-value for the padding points (average of the lowest 3 points)
+          const sortedData = [...chartData].sort((a, b) => a.x - b.x);
+          const lowestPoints = sortedData.slice(0, Math.min(3, sortedData.length));
+          const avgY = lowestPoints.reduce((sum, p) => sum + p.y, 0) / lowestPoints.length;
+          
+          // Add a few padding points to fill the left side
+          chartData = [
+            { x: Math.max(0.1, minProb - 0.3), y: avgY },
+            { x: Math.max(0.2, minProb - 0.2), y: avgY },
+            { x: Math.max(0.3, minProb - 0.1), y: avgY },
+            ...chartData
+          ];
+        }
+      }
+      
       console.log('Chart Data:', chartData)
       
       // Use proper capitalization for axis labels
@@ -359,7 +380,7 @@ const SlidingResults = ({ results }) => {
       
       console.log('Chart Title:', chartTitle)
       
-      // Calculate min and max values for the X axis when probability is selected
+      // Calculate proper min/max for probability X-axis if needed
       let xAxisConfig = {
         type: 'linear',
         title: {
@@ -388,17 +409,16 @@ const SlidingResults = ({ results }) => {
           color: 'rgba(220, 232, 224, 0.6)'
         }
       };
-
-      // For probability on X-axis, adjust the range dynamically
+      
+      // Special configuration for probability on X-axis
       if (currentXAxis === 'probability') {
-        // Find the minimum probability in the data
-        const minProb = Math.min(...chartData.map(d => d.x));
-        // Set X-axis min to a bit lower than the minimum found (but never below 0)
-        const adjustedMin = Math.max(0, minProb - 0.1);
-        // Always cap at 1.0 for probability
+        // Find min probability value in the data (with some padding)
+        const minX = Math.max(0, Math.min(...chartData.map(d => d.x)) - 0.1);
+        const adjustedMinX = Math.floor(minX * 10) / 10; // Round down to nearest 0.1
+        
         xAxisConfig = {
           ...xAxisConfig,
-          min: adjustedMin,
+          min: adjustedMinX,
           max: 1.0,
           ticks: {
             ...xAxisConfig.ticks,
@@ -409,21 +429,16 @@ const SlidingResults = ({ results }) => {
       
       // Create the chart with the correct data and labels
       distributionChartInstance.current = new Chart(ctx, {
-        // Use scatter plot when probability is X-axis for better display
-        type: currentXAxis === 'probability' ? 'scatter' : 'line',
+        type: 'line',
         data: {
           datasets: [{
             label: `${yAxisLabel} by ${xAxisLabel}`,
             data: chartData,
             borderColor: 'rgba(94, 159, 127, 1)',
-            backgroundColor: currentXAxis === 'probability' ? 
-              'rgba(94, 159, 127, 0.8)' : 'rgba(94, 159, 127, 0.2)',
+            backgroundColor: 'rgba(94, 159, 127, 0.2)',
             borderWidth: 2,
             tension: 0.4,
-            fill: currentXAxis !== 'probability',
-            pointRadius: currentXAxis === 'probability' ? 5 : 3,
-            pointHoverRadius: currentXAxis === 'probability' ? 7 : 5,
-            showLine: currentXAxis !== 'probability'
+            fill: true
           }]
         },
         options: {
@@ -945,7 +960,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
       
       <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
         <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
-          <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
+          <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Density
             </div>
@@ -959,7 +974,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               <canvas ref={densityChartRef}></canvas>
             </div>
           </div>
-          <div className="col-md-7" style={{ padding: '0 12px' }}>
+          <div className="col-md-6" style={{ padding: '0 12px' }}>
             <div className="chart-title" style={{ 
               color: '#33523E', 
               fontWeight: 500, 
