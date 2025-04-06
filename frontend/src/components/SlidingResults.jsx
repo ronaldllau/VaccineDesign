@@ -330,7 +330,8 @@ const SlidingResults = ({ results }) => {
         const matchingItems = epitopesOnly.filter(r => {
           if (currentXAxis === 'position') return r.position === xValue;
           if (currentXAxis === 'length') return r.length === xValue;
-          return Math.abs(r.probability - xValue) < 0.001;
+          // Use a more forgiving comparison for floating point probability values
+          return Math.abs(r.probability - xValue) < 0.00001;
         });
         
         // Calculate the average Y value for this X value
@@ -944,7 +945,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
       
       <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
         <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
-          <div className="col-md-6" style={{ padding: '0 12px', marginBottom: '1rem' }}>
+          <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Density
             </div>
@@ -958,7 +959,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               <canvas ref={densityChartRef}></canvas>
             </div>
           </div>
-          <div className="col-md-6" style={{ padding: '0 12px' }}>
+          <div className="col-md-7" style={{ padding: '0 12px' }}>
             <div className="chart-title" style={{ 
               color: '#33523E', 
               fontWeight: 500, 
