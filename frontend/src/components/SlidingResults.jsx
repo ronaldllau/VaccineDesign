@@ -272,155 +272,182 @@ const SlidingResults = ({ results }) => {
     
     const ctx = distributionChartRef.current.getContext('2d')
     
-    // Get unique X values and sort them
-    const epitopesOnly = results.results.filter(r => r.is_epitope)
-    const xValues = Array.from(new Set(epitopesOnly.map(r => {
-      if (chartXAxis === 'position') return r.position;
-      if (chartXAxis === 'length') return r.length;
-      return r.probability;
-    }))).sort((a, b) => a - b);
-    
-    console.log('X Values:', xValues)
-    
-    // For each X value, calculate the corresponding Y value (average if multiple matches)
-    const chartData = xValues.map(xValue => {
-      // Find all items matching this X value
-      const matchingItems = epitopesOnly.filter(r => {
-        if (chartXAxis === 'position') return r.position === xValue;
-        if (chartXAxis === 'length') return r.length === xValue;
-        return Math.abs(r.probability - xValue) < 0.001;
+    try {
+      // Get unique X values and sort them
+      const epitopesOnly = results.results.filter(r => r.is_epitope)
+      console.log('Total epitopes for chart:', epitopesOnly.length)
+      
+      if (epitopesOnly.length === 0) {
+        console.log('No epitopes found for chart')
+        return
+      }
+      
+      // Extract X values from epitopes
+      const xValues = Array.from(new Set(epitopesOnly.map(r => {
+        if (chartXAxis === 'position') return r.position;
+        if (chartXAxis === 'length') return r.length;
+        return r.probability;
+      }))).sort((a, b) => a - b);
+      
+      console.log(`X Values (${chartXAxis}):`, xValues)
+      
+      // For each X value, calculate the corresponding Y value
+      const chartData = xValues.map(xValue => {
+        // Find all items matching this X value
+        const matchingItems = epitopesOnly.filter(r => {
+          if (chartXAxis === 'position') return r.position === xValue;
+          if (chartXAxis === 'length') return r.length === xValue;
+          return Math.abs(r.probability - xValue) < 0.001;
+        });
+        
+        // Calculate the average Y value for this X value
+        let yValue = 0;
+        if (matchingItems.length > 0) {
+          yValue = matchingItems.reduce((sum, item) => {
+            if (chartYAxis === 'position') return sum + item.position;
+            if (chartYAxis === 'length') return sum + item.length;
+            return sum + item.probability;
+          }, 0) / matchingItems.length;
+        }
+        
+        return {
+          x: xValue,
+          y: yValue
+        };
       });
       
-      // Calculate the average Y value for this X value
-      let yValue = 0;
-      if (matchingItems.length > 0) {
-        yValue = matchingItems.reduce((sum, item) => {
-          if (chartYAxis === 'position') return sum + item.position;
-          if (chartYAxis === 'length') return sum + item.length;
-          return sum + item.probability;
-        }, 0) / matchingItems.length;
-      }
+      console.log('Chart Data:', chartData)
       
-      return {
-        x: xValue,
-        y: yValue
-      };
-    });
-    
-    console.log('Chart Data:', chartData)
-    
-    // Use proper capitalization for axis labels
-    const xAxisLabel = chartXAxis.charAt(0).toUpperCase() + chartXAxis.slice(1);
-    const yAxisLabel = chartYAxis.charAt(0).toUpperCase() + chartYAxis.slice(1);
-    const chartTitle = `${yAxisLabel} Distribution by ${xAxisLabel}`;
-    
-    console.log('Chart Title:', chartTitle)
-    
-    // Create the chart with the correct data and labels
-    distributionChartInstance.current = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: chartData.map(d => d.x),
-        datasets: [{
-          label: `${yAxisLabel} by ${xAxisLabel}`,
-          data: chartData.map(d => d.y),
-          borderColor: 'rgba(94, 159, 127, 1)',
-          backgroundColor: 'rgba(94, 159, 127, 0.2)',
-          borderWidth: 2,
-          tension: 0.4,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: xAxisLabel,
-              color: '#3A424E',
-              font: {
-                family: 'Helvetica, Inter, system-ui, sans-serif',
-                size: 11
-              }
-            },
-            ticks: {
-              color: '#3A424E',
-              font: {
-                family: 'Helvetica, Inter, system-ui, sans-serif',
-                size: 10
-              }
-            },
-            grid: {
-              color: 'rgba(220, 232, 224, 0.6)'
-            }
-          },
-          y: {
-            min: chartYAxis === 'probability' ? 0 : undefined,
-            max: chartYAxis === 'probability' ? 1 : undefined,
-            title: {
-              display: true,
-              text: yAxisLabel,
-              color: '#3A424E',
-              font: {
-                family: 'Helvetica, Inter, system-ui, sans-serif',
-                size: 11
-              }
-            },
-            ticks: {
-              color: '#3A424E',
-              font: {
-                family: 'Helvetica, Inter, system-ui, sans-serif',
-                size: 10
-              }
-            },
-            grid: {
-              color: 'rgba(220, 232, 224, 0.6)'
-            }
-          }
+      // Use proper capitalization for axis labels
+      const xAxisLabel = chartXAxis.charAt(0).toUpperCase() + chartXAxis.slice(1);
+      const yAxisLabel = chartYAxis.charAt(0).toUpperCase() + chartYAxis.slice(1);
+      const chartTitle = `${yAxisLabel} Distribution by ${xAxisLabel}`;
+      
+      console.log('Chart Title:', chartTitle)
+      
+      // Create the chart with the correct data and labels
+      distributionChartInstance.current = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: `${yAxisLabel} by ${xAxisLabel}`,
+            data: chartData,
+            borderColor: 'rgba(94, 159, 127, 1)',
+            backgroundColor: 'rgba(94, 159, 127, 0.2)',
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true
+          }]
         },
-        plugins: {
-          legend: {
-            display: false
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          parsing: {
+            xAxisKey: 'x',
+            yAxisKey: 'y'
           },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return `${yAxisLabel}: ${context.raw.toFixed(3)}`;
+          scales: {
+            x: {
+              type: 'linear',
+              ...(chartXAxis === 'probability' ? {
+                min: 0,
+                max: 1,
+              } : {}),
+              title: {
+                display: true,
+                text: xAxisLabel,
+                color: '#3A424E',
+                font: {
+                  family: 'Helvetica, Inter, system-ui, sans-serif',
+                  size: 11
+                }
               },
-              title: function(context) {
-                return `${xAxisLabel}: ${context[0].label}`;
+              ticks: {
+                ...(chartXAxis === 'probability' ? { stepSize: 0.1 } : {}),
+                color: '#3A424E',
+                font: {
+                  family: 'Helvetica, Inter, system-ui, sans-serif',
+                  size: 10
+                },
+                callback: function(value) {
+                  if (chartXAxis === 'probability') {
+                    return value.toFixed(1);
+                  }
+                  return value;
+                }
+              },
+              grid: {
+                color: 'rgba(220, 232, 224, 0.6)'
               }
             },
-            titleFont: {
-              family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 12
-            },
-            bodyFont: {
-              family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 11
-            },
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            titleColor: '#33523E',
-            bodyColor: '#3A424E',
-            borderColor: '#DCE8E0',
-            borderWidth: 1
+            y: {
+              min: chartYAxis === 'probability' ? 0 : undefined,
+              max: chartYAxis === 'probability' ? 1 : undefined,
+              title: {
+                display: true,
+                text: yAxisLabel,
+                color: '#3A424E',
+                font: {
+                  family: 'Helvetica, Inter, system-ui, sans-serif',
+                  size: 11
+                }
+              },
+              ticks: {
+                color: '#3A424E',
+                font: {
+                  family: 'Helvetica, Inter, system-ui, sans-serif',
+                  size: 10
+                }
+              },
+              grid: {
+                color: 'rgba(220, 232, 224, 0.6)'
+              }
+            }
           },
-          title: {
-            display: true,
-            text: chartTitle,
-            font: {
-              family: 'Helvetica, Inter, system-ui, sans-serif',
-              size: 13,
-              weight: 500
+          plugins: {
+            legend: {
+              display: false
             },
-            color: '#33523E',
-            padding: 10
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${yAxisLabel}: ${context.parsed.y.toFixed(3)}`;
+                },
+                title: function(context) {
+                  return `${xAxisLabel}: ${context.parsed.x}`;
+                }
+              },
+              titleFont: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 12
+              },
+              bodyFont: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 11
+              },
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              titleColor: '#33523E',
+              bodyColor: '#3A424E',
+              borderColor: '#DCE8E0',
+              borderWidth: 1
+            },
+            title: {
+              display: true,
+              text: chartTitle,
+              font: {
+                family: 'Helvetica, Inter, system-ui, sans-serif',
+                size: 13,
+                weight: 500
+              },
+              color: '#33523E',
+              padding: 10
+            }
           }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Error creating chart:', error);
+    }
   }
 
   const loadStructure = async (sequence) => {
@@ -910,14 +937,19 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                       // If new X-axis is same as current Y-axis, swap them
                       if (newXAxis === chartYAxis) {
                         setChartYAxis(chartXAxis);
+                        setTimeout(() => {
+                          if (results && distributionChartRef.current) {
+                            createDistributionChart();
+                          }
+                        }, 10);
+                      } else {
+                        setChartXAxis(newXAxis);
+                        setTimeout(() => {
+                          if (results && distributionChartRef.current) {
+                            createDistributionChart();
+                          }
+                        }, 10);
                       }
-                      setChartXAxis(newXAxis);
-                      // Recreate chart immediately
-                      setTimeout(() => {
-                        if (distributionChartRef.current) {
-                          createDistributionChart();
-                        }
-                      }, 0);
                     }}
                     style={{
                       fontSize: '0.75rem',
@@ -941,14 +973,19 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                       // If new Y-axis is same as current X-axis, swap them
                       if (newYAxis === chartXAxis) {
                         setChartXAxis(chartYAxis);
+                        setTimeout(() => {
+                          if (results && distributionChartRef.current) {
+                            createDistributionChart();
+                          }
+                        }, 10);
+                      } else {
+                        setChartYAxis(newYAxis);
+                        setTimeout(() => {
+                          if (results && distributionChartRef.current) {
+                            createDistributionChart();
+                          }
+                        }, 10);
                       }
-                      setChartYAxis(newYAxis);
-                      // Recreate chart immediately
-                      setTimeout(() => {
-                        if (distributionChartRef.current) {
-                          createDistributionChart();
-                        }
-                      }, 0);
                     }}
                     style={{
                       fontSize: '0.75rem',
