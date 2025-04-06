@@ -358,18 +358,71 @@ const SlidingResults = ({ results }) => {
       
       console.log('Chart Title:', chartTitle)
       
+      // Calculate min and max values for the X axis when probability is selected
+      let xAxisConfig = {
+        type: 'linear',
+        title: {
+          display: true,
+          text: xAxisLabel,
+          color: '#3A424E',
+          font: {
+            family: 'Helvetica, Inter, system-ui, sans-serif',
+            size: 11
+          }
+        },
+        ticks: {
+          color: '#3A424E',
+          font: {
+            family: 'Helvetica, Inter, system-ui, sans-serif',
+            size: 10
+          },
+          callback: function(value) {
+            if (currentXAxis === 'probability') {
+              return value.toFixed(1);
+            }
+            return value;
+          }
+        },
+        grid: {
+          color: 'rgba(220, 232, 224, 0.6)'
+        }
+      };
+
+      // For probability on X-axis, adjust the range dynamically
+      if (currentXAxis === 'probability') {
+        // Find the minimum probability in the data
+        const minProb = Math.min(...chartData.map(d => d.x));
+        // Set X-axis min to a bit lower than the minimum found (but never below 0)
+        const adjustedMin = Math.max(0, minProb - 0.1);
+        // Always cap at 1.0 for probability
+        xAxisConfig = {
+          ...xAxisConfig,
+          min: adjustedMin,
+          max: 1.0,
+          ticks: {
+            ...xAxisConfig.ticks,
+            stepSize: 0.1
+          }
+        };
+      }
+      
       // Create the chart with the correct data and labels
       distributionChartInstance.current = new Chart(ctx, {
-        type: 'line',
+        // Use scatter plot when probability is X-axis for better display
+        type: currentXAxis === 'probability' ? 'scatter' : 'line',
         data: {
           datasets: [{
             label: `${yAxisLabel} by ${xAxisLabel}`,
             data: chartData,
             borderColor: 'rgba(94, 159, 127, 1)',
-            backgroundColor: 'rgba(94, 159, 127, 0.2)',
+            backgroundColor: currentXAxis === 'probability' ? 
+              'rgba(94, 159, 127, 0.8)' : 'rgba(94, 159, 127, 0.2)',
             borderWidth: 2,
             tension: 0.4,
-            fill: true
+            fill: currentXAxis !== 'probability',
+            pointRadius: currentXAxis === 'probability' ? 5 : 3,
+            pointHoverRadius: currentXAxis === 'probability' ? 7 : 5,
+            showLine: currentXAxis !== 'probability'
           }]
         },
         options: {
@@ -380,39 +433,7 @@ const SlidingResults = ({ results }) => {
             yAxisKey: 'y'
           },
           scales: {
-            x: {
-              type: 'linear',
-              ...(currentXAxis === 'probability' ? {
-                min: 0,
-                max: 1,
-              } : {}),
-              title: {
-                display: true,
-                text: xAxisLabel,
-                color: '#3A424E',
-                font: {
-                  family: 'Helvetica, Inter, system-ui, sans-serif',
-                  size: 11
-                }
-              },
-              ticks: {
-                ...(currentXAxis === 'probability' ? { stepSize: 0.1 } : {}),
-                color: '#3A424E',
-                font: {
-                  family: 'Helvetica, Inter, system-ui, sans-serif',
-                  size: 10
-                },
-                callback: function(value) {
-                  if (currentXAxis === 'probability') {
-                    return value.toFixed(1);
-                  }
-                  return value;
-                }
-              },
-              grid: {
-                color: 'rgba(220, 232, 224, 0.6)'
-              }
-            },
+            x: xAxisConfig,
             y: {
               min: currentYAxis === 'probability' ? 0 : undefined,
               max: currentYAxis === 'probability' ? 1 : undefined,
