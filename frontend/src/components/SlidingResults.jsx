@@ -313,6 +313,13 @@ const SlidingResults = ({ results }) => {
     
     const ctx = distributionChartRef.current.getContext('2d')
     
+    // Ensure the canvas takes the full width of its container
+    const parentWidth = distributionChartRef.current.parentNode.clientWidth;
+    if (parentWidth) {
+      distributionChartRef.current.style.width = '100%';
+      distributionChartRef.current.style.maxWidth = '100%';
+    }
+    
     try {
       // Get unique X values and sort them
       const epitopesOnly = results.results.filter(r => r.is_epitope)
@@ -452,7 +459,7 @@ const SlidingResults = ({ results }) => {
         options: {
           responsive: true,
           maintainAspectRatio: true,
-          aspectRatio: 2, // Wider aspect ratio for the distribution chart
+          aspectRatio: 2.5, // Wider aspect ratio for the distribution chart
           parsing: {
             xAxisKey: 'x',
             yAxisKey: 'y'
@@ -968,7 +975,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
       </div>
       
       <div className="chart-container-wrapper" style={{ backgroundColor: '#F5F5F5', borderRadius: '0.375rem', padding: '1.25rem', border: '1px solid #DCE8E0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
-        <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px' }}>
+        <div className="row" style={{ display: 'flex', flexWrap: 'wrap', margin: '0 -12px', width: '100%' }}>
           <div className="col-md-5" style={{ padding: '0 12px', marginBottom: '1rem' }}>
             <div className="chart-title" style={{ color: '#33523E', fontWeight: 500, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
               Epitope Density
@@ -985,7 +992,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               <canvas ref={densityChartRef}></canvas>
             </div>
           </div>
-          <div className="col-md-7" style={{ padding: '0 12px' }}>
+          <div className="col-md-7" style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', width: '100%' }}>
             <div className="chart-title" style={{ 
               color: '#33523E', 
               fontWeight: 500, 
@@ -995,7 +1002,8 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               marginBottom: '0.75rem',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              width: '100%'
             }}>
               <span>Epitope Distribution</span>
               <div style={{ 
@@ -1108,7 +1116,7 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
               height: '300px', 
               backgroundColor: 'white', 
               borderRadius: '0.375rem', 
-              padding: '1.5rem 0.75rem 0.75rem 0.75rem', 
+              padding: '1.5rem 1.5rem 1rem 1rem', 
               border: '1px solid #DCE8E0',
               position: 'relative',
               width: '100%'
