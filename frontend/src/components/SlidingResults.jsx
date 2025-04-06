@@ -136,9 +136,7 @@ const SlidingResults = ({ results }) => {
     
     createDensityChart()
     
-    console.log(`Chart axes changed - X: ${chartXAxis}, Y: ${chartYAxis}`)
-    createDistributionChart()
-    
+    // Initial chart creation only when results change
     if (results.original_sequence) {
       loadStructure(results.original_sequence)
     }
@@ -161,7 +159,15 @@ const SlidingResults = ({ results }) => {
         }
       }
     }
-  }, [results, chartXAxis, chartYAxis])
+  }, [results]) // Removed chartXAxis and chartYAxis dependencies
+  
+  // Initial creation of distribution chart when results load
+  useEffect(() => {
+    if (results && distributionChartRef.current) {
+      console.log('Initial creation of distribution chart');
+      createDistributionChart();
+    }
+  }, [results]);
 
   useEffect(() => {
     if (viewerRef.current && hoveredResidue !== null) {
@@ -264,7 +270,14 @@ const SlidingResults = ({ results }) => {
   const createDistributionChart = () => {
     if (!distributionChartRef.current || !results) return
     
-    console.log('Creating distribution chart with:', { xAxis: chartXAxis, yAxis: chartYAxis })
+    // Explicitly get current state values to avoid closure issues
+    const currentXAxis = chartXAxis;
+    const currentYAxis = chartYAxis;
+    
+    console.log('Creating distribution chart with:', { 
+      xAxis: currentXAxis, 
+      yAxis: currentYAxis 
+    })
     
     if (distributionChartInstance.current) {
       distributionChartInstance.current.destroy()
@@ -284,19 +297,19 @@ const SlidingResults = ({ results }) => {
       
       // Extract X values from epitopes
       const xValues = Array.from(new Set(epitopesOnly.map(r => {
-        if (chartXAxis === 'position') return r.position;
-        if (chartXAxis === 'length') return r.length;
+        if (currentXAxis === 'position') return r.position;
+        if (currentXAxis === 'length') return r.length;
         return r.probability;
       }))).sort((a, b) => a - b);
       
-      console.log(`X Values (${chartXAxis}):`, xValues)
+      console.log(`X Values (${currentXAxis}):`, xValues)
       
       // For each X value, calculate the corresponding Y value
       const chartData = xValues.map(xValue => {
         // Find all items matching this X value
         const matchingItems = epitopesOnly.filter(r => {
-          if (chartXAxis === 'position') return r.position === xValue;
-          if (chartXAxis === 'length') return r.length === xValue;
+          if (currentXAxis === 'position') return r.position === xValue;
+          if (currentXAxis === 'length') return r.length === xValue;
           return Math.abs(r.probability - xValue) < 0.001;
         });
         
@@ -304,8 +317,8 @@ const SlidingResults = ({ results }) => {
         let yValue = 0;
         if (matchingItems.length > 0) {
           yValue = matchingItems.reduce((sum, item) => {
-            if (chartYAxis === 'position') return sum + item.position;
-            if (chartYAxis === 'length') return sum + item.length;
+            if (currentYAxis === 'position') return sum + item.position;
+            if (currentYAxis === 'length') return sum + item.length;
             return sum + item.probability;
           }, 0) / matchingItems.length;
         }
@@ -319,8 +332,8 @@ const SlidingResults = ({ results }) => {
       console.log('Chart Data:', chartData)
       
       // Use proper capitalization for axis labels
-      const xAxisLabel = chartXAxis.charAt(0).toUpperCase() + chartXAxis.slice(1);
-      const yAxisLabel = chartYAxis.charAt(0).toUpperCase() + chartYAxis.slice(1);
+      const xAxisLabel = currentXAxis.charAt(0).toUpperCase() + currentXAxis.slice(1);
+      const yAxisLabel = currentYAxis.charAt(0).toUpperCase() + currentYAxis.slice(1);
       const chartTitle = `${yAxisLabel} Distribution by ${xAxisLabel}`;
       
       console.log('Chart Title:', chartTitle)
@@ -349,7 +362,7 @@ const SlidingResults = ({ results }) => {
           scales: {
             x: {
               type: 'linear',
-              ...(chartXAxis === 'probability' ? {
+              ...(currentXAxis === 'probability' ? {
                 min: 0,
                 max: 1,
               } : {}),
@@ -363,14 +376,14 @@ const SlidingResults = ({ results }) => {
                 }
               },
               ticks: {
-                ...(chartXAxis === 'probability' ? { stepSize: 0.1 } : {}),
+                ...(currentXAxis === 'probability' ? { stepSize: 0.1 } : {}),
                 color: '#3A424E',
                 font: {
                   family: 'Helvetica, Inter, system-ui, sans-serif',
                   size: 10
                 },
                 callback: function(value) {
-                  if (chartXAxis === 'probability') {
+                  if (currentXAxis === 'probability') {
                     return value.toFixed(1);
                   }
                   return value;
@@ -381,8 +394,8 @@ const SlidingResults = ({ results }) => {
               }
             },
             y: {
-              min: chartYAxis === 'probability' ? 0 : undefined,
-              max: chartYAxis === 'probability' ? 1 : undefined,
+              min: currentYAxis === 'probability' ? 0 : undefined,
+              max: currentYAxis === 'probability' ? 1 : undefined,
               title: {
                 display: true,
                 text: yAxisLabel,
@@ -934,21 +947,28 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                     value={chartXAxis}
                     onChange={(e) => {
                       const newXAxis = e.target.value;
+                      console.log('X-axis changed to:', newXAxis);
+                      
                       // If new X-axis is same as current Y-axis, swap them
                       if (newXAxis === chartYAxis) {
-                        setChartYAxis(chartXAxis);
-                        setTimeout(() => {
-                          if (results && distributionChartRef.current) {
-                            createDistributionChart();
-                          }
-                        }, 10);
-                      } else {
+                        const oldXAxis = chartXAxis;
+                        // Update both states and then redraw
                         setChartXAxis(newXAxis);
+                        setChartYAxis(oldXAxis);
+                        
+                        // Use a small delay to ensure state is updated
                         setTimeout(() => {
-                          if (results && distributionChartRef.current) {
-                            createDistributionChart();
-                          }
-                        }, 10);
+                          console.log('Delayed chart update after swap - X:', newXAxis, 'Y:', oldXAxis);
+                          createDistributionChart();
+                        }, 50);
+                      } else {
+                        // Just update X axis
+                        setChartXAxis(newXAxis);
+                        // Use a small delay to ensure state is updated
+                        setTimeout(() => {
+                          console.log('Delayed chart update - new X:', newXAxis, 'Y remains:', chartYAxis);
+                          createDistributionChart();
+                        }, 50);
                       }
                     }}
                     style={{
@@ -970,21 +990,28 @@ Part of epitope with probability: ${highestProbEpitope.probability.toFixed(3)}` 
                     value={chartYAxis}
                     onChange={(e) => {
                       const newYAxis = e.target.value;
+                      console.log('Y-axis changed to:', newYAxis);
+                      
                       // If new Y-axis is same as current X-axis, swap them
                       if (newYAxis === chartXAxis) {
-                        setChartXAxis(chartYAxis);
-                        setTimeout(() => {
-                          if (results && distributionChartRef.current) {
-                            createDistributionChart();
-                          }
-                        }, 10);
-                      } else {
+                        const oldYAxis = chartYAxis;
+                        // Update both states and then redraw
                         setChartYAxis(newYAxis);
+                        setChartXAxis(oldYAxis);
+                        
+                        // Use a small delay to ensure state is updated
                         setTimeout(() => {
-                          if (results && distributionChartRef.current) {
-                            createDistributionChart();
-                          }
-                        }, 10);
+                          console.log('Delayed chart update after swap - Y:', newYAxis, 'X:', oldYAxis);
+                          createDistributionChart();
+                        }, 50);
+                      } else {
+                        // Just update Y axis
+                        setChartYAxis(newYAxis);
+                        // Use a small delay to ensure state is updated
+                        setTimeout(() => {
+                          console.log('Delayed chart update - new Y:', newYAxis, 'X remains:', chartXAxis);
+                          createDistributionChart();
+                        }, 50);
                       }
                     }}
                     style={{
